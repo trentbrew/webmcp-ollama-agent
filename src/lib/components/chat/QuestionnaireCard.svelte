@@ -3,7 +3,9 @@
   import { cubicOut } from 'svelte/easing';
   import type { ChatQuestionnairePart } from '../../ai/protocol';
   import {
+    filterAnswersForSubmit,
     formatAnswersSummary,
+    getVisibleItems,
     isItemAnswered,
     validateQuestionnaire,
     type QuestionnaireAnswers,
@@ -29,13 +31,32 @@
   let error = $state<string | null>(null);
   let submitting = $state(false);
 
-  const current = $derived(items[step]);
-  const progressLabel = $derived(`Question ${step + 1} of ${items.length}`);
+  const visibleItems = $derived(getVisibleItems(items, answers));
+  const current = $derived(visibleItems[step] ?? visibleItems[0]);
+  const progressLabel = $derived(
+    visibleItems.length > 0
+      ? `Question ${step + 1} of ${visibleItems.length}`
+      : 'Questionnaire',
+  );
+
+  $effect(() => {
+    if (step >= visibleItems.length && visibleItems.length > 0) {
+      step = Math.max(0, visibleItems.length - 1);
+    }
+  });
+
+  function inputTypeFor(item: QuestionnaireItem): string {
+    if (item.input?.inputType === 'date') return 'date';
+    if (item.input?.inputType === 'number') return 'number';
+    return 'text';
+  }
 
   function toggleChoice(item: QuestionnaireItem, value: string) {
     if (readOnly) return;
     if (item.multiple) {
-      const currentValues = Array.isArray(answers[item.name]) ? [...(answers[item.name] as string[])] : [];
+      const currentValues = Array.isArray(answers[item.name])
+        ? [...(answers[item.name] as string[])]
+        : [];
       const index = currentValues.indexOf(value);
       if (index >= 0) currentValues.splice(index, 1);
       else currentValues.push(value);
@@ -48,7 +69,8 @@
 
   function isChoiceSelected(item: QuestionnaireItem, value: string) {
     const valueForItem = answers[item.name];
-    if (item.multiple) return Array.isArray(valueForItem) && valueForItem.includes(value);
+    if (item.multiple)
+      return Array.isArray(valueForItem) && valueForItem.includes(value);
     return valueForItem === value;
   }
 
@@ -77,7 +99,7 @@
       error = 'Choose an answer to continue.';
       return;
     }
-    if (step < items.length - 1) {
+    if (step < visibleItems.length - 1) {
       step += 1;
       error = null;
       return;
@@ -91,7 +113,7 @@
     if (!validation.ok && status === 'answered') {
       error = validation.error;
       if (validation.itemName) {
-        const index = items.findIndex((item) => item.name === validation.itemName);
+        const index = visibleItems.findIndex((item) => item.name === validation.itemName);
         if (index >= 0) step = index;
       }
       return;
@@ -99,7 +121,8 @@
 
     submitting = true;
     error = null;
-    const ok = await submitQuestionnaireAnswers(part.id, answers, status);
+    const payload = filterAnswersForSubmit(items, answers);
+    const ok = await submitQuestionnaireAnswers(part.id, payload, status);
     if (!ok) {
       error = 'Could not submit answers. Try again.';
       submitting = false;
@@ -115,7 +138,9 @@
   {#if answered}
     <header class="questionnaire__header">
       <span class="questionnaire__progress">Answered</span>
-      <p class="questionnaire__summary">{formatAnswersSummary(part.answers ?? {})}</p>
+      <p class="questionnaire__summary">
+        {formatAnswersSummary(part.answers ?? {})}
+      </p>
     </header>
   {:else if current}
     <header class="questionnaire__header">
@@ -126,7 +151,10 @@
       {/if}
     </header>
 
-    <div class="questionnaire__body" in:fly={{ y: 6, duration: 180, easing: cubicOut }}>
+    <div
+      class="questionnaire__body"
+      in:fly={{ y: 6, duration: 180, easing: cubicOut }}
+    >
       {#if current.choices?.length}
         <div
           class="questionnaire__choices"
@@ -137,7 +165,10 @@
             <button
               type="button"
               class="questionnaire__choice"
-              class:questionnaire__choice--selected={isChoiceSelected(current, choice.value)}
+              class:questionnaire__choice--selected={isChoiceSelected(
+                current,
+                choice.value,
+              )}
               aria-pressed={isChoiceSelected(current, choice.value)}
               disabled={readOnly || submitting}
               onclick={() => toggleChoice(current, choice.value)}
@@ -148,7 +179,9 @@
               <span class="questionnaire__choice-text">
                 <span class="questionnaire__choice-label">{choice.label}</span>
                 {#if choice.description}
-                  <span class="questionnaire__choice-description">{choice.description}</span>
+                  <span class="questionnaire__choice-description"
+                    >{choice.description}</span
+                  >
                 {/if}
               </span>
             </button>
@@ -161,8 +194,12 @@
           <span>{current.input.label}</span>
           <input
             class="questionnaire__input"
-            type="text"
-            value={typeof answers[current.name] === 'string' ? (answers[current.name] as string) : ''}
+            type={inputTypeFor(current)}
+            inputmode={current.input.inputType === 'number' ? 'numeric' : undefined}
+            min={current.input.inputType === 'number' ? '1' : undefined}
+            value={typeof answers[current.name] === 'string'
+              ? (answers[current.name] as string)
+              : ''}
             placeholder={current.input.placeholder}
             disabled={readOnly || submitting}
             oninput={(event) => setInput(current, event.currentTarget.value)}
@@ -186,16 +223,31 @@
       </Button>
       <div class="questionnaire__actions-end">
         {#if !current.required}
-          <Button variant="ghost" size="sm" disabled={submitting} onclick={() => skipCurrent()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={submitting}
+            onclick={() => skipCurrent()}
+          >
             Skip
           </Button>
         {/if}
-        {#if step < items.length - 1}
-          <Button variant="primary" size="sm" disabled={submitting} onclick={() => goForward()}>
+        {#if step < visibleItems.length - 1}
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={submitting}
+            onclick={() => goForward()}
+          >
             Next
           </Button>
         {:else}
-          <Button variant="primary" size="sm" disabled={submitting} onclick={() => goForward()}>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={submitting}
+            onclick={() => goForward()}
+          >
             Submit
           </Button>
         {/if}

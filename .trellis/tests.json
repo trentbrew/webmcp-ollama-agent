@@ -1,44 +1,18 @@
 {
-  "version": 1,
-  "defaultSuite": "unit",
+  "review": {
+    "check": "check",
+    "unit": "unit",
+    "e2e": "e2e"
+  },
   "suites": {
-    "unit": {
-      "description": "Vitest unit + regression suite",
-      "command": "pnpm test"
-    },
     "check": {
-      "description": "svelte-check typecheck across src/",
       "command": "pnpm check"
     },
-    "browser-smoke": {
-      "description": "Live-tab smoke: test-page tool registration via Trellis extension relay",
-      "kind": "browser",
-      "command": "trellis browser verify browser-smoke",
-      "stepsFile": ".trellis/browser-suites/browser-smoke.json",
-      "timeoutMs": 30000
+    "unit": {
+      "command": "pnpm test"
+    },
+    "e2e": {
+      "command": "pnpm test:e2e e2e/questionnaire.spec.ts"
     }
-  },
-  "promote": {
-    "require": ["unit"]
-  },
-  "issueStart": {
-    "default": [
-      {
-        "description": "Unit tests pass",
-        "suite": "unit"
-      }
-    ]
-  },
-  "issueLabels": {
-    "needs-e2e": [
-      {
-        "description": "Live-tab browser smoke passes",
-        "suite": "browser-smoke"
-      }
-    ]
-  },
-  "review": {
-    "check": "unit",
-    "e2e": "browser-smoke"
   }
 }

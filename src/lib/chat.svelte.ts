@@ -16,6 +16,7 @@ import {
   clearDetachedArchiveOnEdit,
   exitDetachedArchive,
   getAbortController,
+  getChatForTab,
   getDisplayedChatSession,
   initChatSessionTracking,
   isChatBusy,
@@ -67,6 +68,60 @@ const pendingQuestionnaires = new Map<string, PendingQuestionnaire>();
 /** Returns the currently displayed chat session (active tab or detached archive). */
 export function getChat() {
   return getDisplayedChatSession() ?? EMPTY_CHAT_VIEW;
+}
+
+/** Active pending questionnaire for the dock UI (not inline in transcript). */
+export function getPendingQuestionnaire(): ChatQuestionnairePart | null {
+  const session = getDisplayedChatSession();
+  if (!session || session.status !== 'awaiting-input') return null;
+
+  for (let index = session.messages.length - 1; index >= 0; index -= 1) {
+    const message = session.messages[index];
+    if (message.role !== 'assistant') continue;
+    for (const part of message.parts) {
+      if (part.type === 'questionnaire' && part.status === 'pending') {
+        return part;
+      }
+    }
+  }
+
+  return null;
+}
+
+declare global {
+  interface Window {
+    __webmcpE2EAnswers?: QuestionnaireAnswers;
+  }
+}
+
+/** Seeds chat state so Playwright can exercise QuestionnaireDock submit flow. */
+export function primeQuestionnaireForE2E(part: ChatQuestionnairePart): void {
+  const tabId = 1;
+  chatSessionState.activeTabId = tabId;
+  chatSessionState.detached = null;
+
+  const assistantId = 'e2e-assistant';
+  const session = getChatForTab(tabId);
+  session.messages = [
+    {
+      id: assistantId,
+      role: 'assistant',
+      parts: [part],
+      metadata: createMessageMetadata(),
+    },
+  ];
+  session.status = 'awaiting-input';
+  session.error = null;
+  session.updatedAt = Date.now();
+
+  pendingQuestionnaires.set(part.id, {
+    sessionKey: tabId,
+    assistantId,
+    resolve: (answers) => {
+      window.__webmcpE2EAnswers = answers;
+    },
+    reject: () => {},
+  });
 }
 
 export type SendMessageInput = {

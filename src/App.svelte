@@ -7,6 +7,7 @@
   import Nav from './lib/components/Nav.svelte';
   import LayoutWrapper from './lib/components/LayoutWrapper.svelte';
   import ChatComposer from './lib/components/chat/ChatComposer.svelte';
+  import QuestionnaireDock from './lib/components/chat/QuestionnaireDock.svelte';
   import { ShellPageHost } from './lib/components/shell';
   import { loadAvailableModels } from './lib/chat/settings.svelte';
   import { initChatSessionTracking } from './lib/chat.svelte';
@@ -48,6 +49,7 @@
           <ShellPageHost page={$currentPage} />
         {/if}
       </main>
+      <QuestionnaireDock />
       <ChatComposer onSend={() => currentPage.set('chat')} />
       <Nav />
     {/if}

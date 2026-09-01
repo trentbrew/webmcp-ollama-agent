@@ -12,7 +12,7 @@ export type QuestionnaireItem = {
   required?: boolean;
   multiple?: boolean;
   choices?: QuestionnaireChoice[];
-  input?: { label: string; placeholder?: string };
+  input?: { label: string; placeholder?: string; inputType?: 'text' | 'number' | 'date' };
 };
 
 export type QuestionnaireAnswers = Record<string, string | string[]>;
@@ -89,6 +89,10 @@ function parseQuestionnaireItem(raw: unknown):
         ? {
             label: item.input!.label,
             placeholder: item.input!.placeholder,
+            inputType:
+              item.input!.inputType === 'date' || item.input!.inputType === 'number'
+                ? item.input!.inputType
+                : 'text',
           }
         : undefined,
     },
@@ -104,11 +108,37 @@ export function isItemAnswered(item: QuestionnaireItem, answers: QuestionnaireAn
   return false;
 }
 
+export function isQuestionVisible(
+  item: QuestionnaireItem,
+  answers: QuestionnaireAnswers,
+): boolean {
+  if (item.name === 'inboundDate' || item.name === 'returnDate') {
+    const tripType = answers.tripType;
+    if (typeof tripType === 'string' && tripType === 'one-way') return false;
+  }
+  return true;
+}
+
+export function getVisibleItems(
+  items: QuestionnaireItem[],
+  answers: QuestionnaireAnswers,
+): QuestionnaireItem[] {
+  return items.filter((item) => isQuestionVisible(item, answers));
+}
+
+export function filterAnswersForSubmit(
+  items: QuestionnaireItem[],
+  answers: QuestionnaireAnswers,
+): QuestionnaireAnswers {
+  const visible = new Set(getVisibleItems(items, answers).map((item) => item.name));
+  return Object.fromEntries(Object.entries(answers).filter(([name]) => visible.has(name)));
+}
+
 export function validateQuestionnaire(
   items: QuestionnaireItem[],
   answers: QuestionnaireAnswers,
 ): { ok: true } | { ok: false; error: string; itemName?: string } {
-  for (const item of items) {
+  for (const item of getVisibleItems(items, answers)) {
     if (!item.required) continue;
     if (!isItemAnswered(item, answers)) {
       return { ok: false, error: `Answer required: ${item.prompt}`, itemName: item.name };

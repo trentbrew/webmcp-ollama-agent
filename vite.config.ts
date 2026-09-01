@@ -9,7 +9,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        background: resolve(__dirname, 'src/background/index.ts')
+        background: resolve(__dirname, 'src/background/index.ts'),
+        'questionnaire-e2e': resolve(__dirname, 'questionnaire-e2e.html'),
       },
       output: {
         entryFileNames: `assets/[name].js`,
