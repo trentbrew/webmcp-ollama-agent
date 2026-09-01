@@ -1,17 +1,49 @@
 <script lang="ts">
-  import { ArrowUp, ChevronDown, ExternalLink, Paperclip, Square, Terminal, Wrench, Hash, X } from '../../icons';
+  import {
+    ArrowUp,
+    ChevronDown,
+    ExternalLink,
+    Paperclip,
+    Square,
+    Terminal,
+    Wrench,
+    Hash,
+    X,
+  } from '../../icons';
   import { formatFileSize } from '../../ai/messages';
   import { isChatBusy, sendChatMessage } from '../../chat.svelte';
-  import { chatModelCatalog, chatSettings, setChatModel, setExposeToolsToAgent } from '../../chat/settings.svelte';
-  import { applyComposerReplacement, detectComposerTrigger } from '../../chat/composerTriggers';
+  import {
+    chatModelCatalog,
+    chatSettings,
+    setChatModel,
+    setExposeToolsToAgent,
+  } from '../../chat/settings.svelte';
+  import {
+    applyComposerReplacement,
+    detectComposerTrigger,
+  } from '../../chat/composerTriggers';
   import { closeSessionPicker, composerUi } from '../../chat/composerUi.svelte';
-  import { filterSlashCommands, type SlashCommand } from '../../chat/slashCommands';
-  import { filterToolMentions, filterTraceMentions, formatToolMention } from '../../chat/mentions';
-  import { listResumableSessions, resumeSession, type ResumeTarget } from '../../chat/sessions.svelte';
+  import {
+    filterSlashCommands,
+    type SlashCommand,
+  } from '../../chat/slashCommands';
+  import {
+    filterToolMentions,
+    filterTraceMentions,
+    formatToolMention,
+  } from '../../chat/mentions';
+  import {
+    listResumableSessions,
+    resumeSession,
+    type ResumeTarget,
+  } from '../../chat/sessions.svelte';
   import type { ResumableSession } from '../../chat/persistence';
   import BorderBeam from '../ui/BorderBeam.svelte';
   import { browserContext } from '../../browser/context.svelte';
-  import { buildAgentToolSummaries, buildAgentTools } from '../../webmcp/toOllamaTools';
+  import {
+    buildAgentToolSummaries,
+    buildAgentTools,
+  } from '../../webmcp/toOllamaTools';
   import { mcpState } from '../../webmcp/store.svelte';
 
   let { onSend }: { onSend?: () => void } = $props();
@@ -61,10 +93,16 @@
   const items = $derived.by((): SuggestionItem[] => {
     if (!trigger) return [];
     if (trigger.mode === 'slash') {
-      return filterSlashCommands(trigger.query).map((command) => ({ kind: 'slash' as const, command }));
+      return filterSlashCommands(trigger.query).map((command) => ({
+        kind: 'slash' as const,
+        command,
+      }));
     }
     if (trigger.mode === 'tool') {
-      return filterToolMentions(buildAgentToolSummaries(mcpState.state?.tools ?? []), trigger.query).map((tool) => ({
+      return filterToolMentions(
+        buildAgentToolSummaries(mcpState.state?.tools ?? []),
+        trigger.query,
+      ).map((tool) => ({
         kind: 'tool' as const,
         name: tool.name,
         description: tool.description,
@@ -78,7 +116,12 @@
     }));
   });
 
-  const menuOpen = $derived(trigger !== null && items.length > 0 && !menuDismissed && !sessionPickerOpen);
+  const menuOpen = $derived(
+    trigger !== null &&
+      items.length > 0 &&
+      !menuDismissed &&
+      !sessionPickerOpen,
+  );
 
   function sessionLabel(session: ResumableSession): string {
     const title = session.title || hostFromUrl(session.url) || 'Untitled tab';
@@ -97,14 +140,18 @@
 
   async function pickSession(session: ResumableSession) {
     const target: ResumeTarget =
-      session.kind === 'open' ? { kind: 'open', tabId: session.tabId } : { kind: 'archive', id: session.id };
+      session.kind === 'open'
+        ? { kind: 'open', tabId: session.tabId }
+        : { kind: 'archive', id: session.id };
     await resumeSession(target);
     draft = '';
     closeSessionPicker();
   }
 
   $effect(() => {
-    const key = trigger ? `${trigger.mode}:${trigger.start}:${trigger.query}` : '';
+    const key = trigger
+      ? `${trigger.mode}:${trigger.start}:${trigger.query}`
+      : '';
     if (key !== lastTriggerKey) {
       lastTriggerKey = key;
       menuDismissed = false;
@@ -138,7 +185,12 @@
 
   function insertReplacement(replacement: string) {
     if (!trigger) return;
-    const { value, cursor: nextCursor } = applyComposerReplacement(draft, trigger.start, trigger.end, replacement);
+    const { value, cursor: nextCursor } = applyComposerReplacement(
+      draft,
+      trigger.start,
+      trigger.end,
+      replacement,
+    );
     draft = value;
     menuDismissed = true;
     requestAnimationFrame(() => {
@@ -148,10 +200,16 @@
     });
   }
 
-  const toolCount = $derived(buildAgentTools(mcpState.state?.tools ?? []).length);
-  const toolSummaries = $derived(buildAgentToolSummaries(mcpState.state?.tools ?? []));
+  const toolCount = $derived(
+    buildAgentTools(mcpState.state?.tools ?? []).length,
+  );
+  const toolSummaries = $derived(
+    buildAgentToolSummaries(mcpState.state?.tools ?? []),
+  );
   const activeTab = $derived(browserContext.activeTab);
-  const activeTabTitle = $derived(activeTab?.title || activeTabHost(activeTab?.url) || 'Active tab');
+  const activeTabTitle = $derived(
+    activeTab?.title || activeTabHost(activeTab?.url) || 'Active tab',
+  );
   const activeTabHostLabel = $derived(activeTabHost(activeTab?.url));
   const tabCount = $derived(browserContext.currentWindowTabs.length);
 
@@ -181,7 +239,8 @@
     const text = draft.trim();
     if ((!text && pendingFiles.length === 0) || busy) return;
 
-    const files = pendingFiles.length > 0 ? filesToFileList(pendingFiles) : undefined;
+    const files =
+      pendingFiles.length > 0 ? filesToFileList(pendingFiles) : undefined;
     draft = '';
     pendingFiles = [];
     onSend?.();
@@ -192,12 +251,15 @@
     if (sessionPickerOpen && resumableSessions.length > 0) {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        sessionPickerIndex = (sessionPickerIndex + 1) % resumableSessions.length;
+        sessionPickerIndex =
+          (sessionPickerIndex + 1) % resumableSessions.length;
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        sessionPickerIndex = (sessionPickerIndex - 1 + resumableSessions.length) % resumableSessions.length;
+        sessionPickerIndex =
+          (sessionPickerIndex - 1 + resumableSessions.length) %
+          resumableSessions.length;
         return;
       }
       if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') {
@@ -268,18 +330,31 @@
   onchange={handleFileSelection}
 />
 
-<form class="chat-composer" class:chat-composer--busy={busy} onsubmit={handleSubmit}>
+<form
+  class="chat-composer"
+  class:chat-composer--busy={busy}
+  onsubmit={handleSubmit}
+>
   {#if busy}
     <BorderBeam size={120} duration={6} borderWidth={2} />
   {/if}
-  <div class="chat-composer__context" title={activeTab?.url ?? 'No active tab context'}>
+  <div
+    class="chat-composer__context"
+    title={activeTab?.url ?? 'No active tab context'}
+  >
     <ExternalLink size={12} />
-    <span class="chat-composer__context-title truncate">{activeTab ? activeTabTitle : 'No active tab context'}</span>
+    <span class="chat-composer__context-title truncate"
+      >{activeTab ? activeTabTitle : 'No active tab context'}</span
+    >
     {#if activeTabHostLabel}
-      <span class="chat-composer__context-host truncate">{activeTabHostLabel}</span>
+      <span class="chat-composer__context-host truncate"
+        >{activeTabHostLabel}</span
+      >
     {/if}
     {#if tabCount > 0}
-      <span class="chat-composer__context-count">{tabCount} tab{tabCount === 1 ? '' : 's'}</span>
+      <span class="chat-composer__context-count"
+        >{tabCount} tab{tabCount === 1 ? '' : 's'}</span
+      >
     {/if}
   </div>
   {#if pendingFiles.length > 0}
@@ -288,7 +363,9 @@
         <div class="chat-composer__file">
           <Paperclip size={11} />
           <span class="truncate">{file.name}</span>
-          <span class="chat-composer__file-size">{formatFileSize(file.size)}</span>
+          <span class="chat-composer__file-size"
+            >{formatFileSize(file.size)}</span
+          >
           <button
             type="button"
             class="chat-composer__file-remove"
@@ -304,9 +381,15 @@
 
   <div class="chat-composer__field">
     {#if sessionPickerOpen}
-      <div class="chat-composer__suggestions" role="listbox" aria-label="Resume conversation">
+      <div
+        class="chat-composer__suggestions"
+        role="listbox"
+        aria-label="Resume conversation"
+      >
         {#if resumableSessions.length === 0}
-          <p class="chat-composer__suggestions-empty">No other conversations to resume.</p>
+          <p class="chat-composer__suggestions-empty">
+            No other conversations to resume.
+          </p>
         {:else}
           {#each resumableSessions as session, index (session.kind === 'open' ? `open-${session.tabId}` : `archive-${session.id}`)}
             <button
@@ -321,9 +404,13 @@
             >
               <ExternalLink size={13} class="chat-composer__suggestion-icon" />
               <span class="chat-composer__suggestion-text">
-                <span class="chat-composer__suggestion-title">{sessionLabel(session)}</span>
+                <span class="chat-composer__suggestion-title"
+                  >{sessionLabel(session)}</span
+                >
                 <span class="chat-composer__suggestion-desc">
-                  {session.messageCount} message{session.messageCount === 1 ? '' : 's'}
+                  {session.messageCount} message{session.messageCount === 1
+                    ? ''
+                    : 's'}
                   {#if session.url}
                     · {hostFromUrl(session.url)}
                   {/if}
@@ -334,7 +421,11 @@
         {/if}
       </div>
     {:else if menuOpen}
-      <div class="chat-composer__suggestions" role="listbox" aria-label="Composer suggestions">
+      <div
+        class="chat-composer__suggestions"
+        role="listbox"
+        aria-label="Composer suggestions"
+      >
         {#each items as item, index (item.kind === 'slash' ? `slash-${item.command.id}` : item.kind === 'tool' ? `tool-${item.name}` : `trace-${item.id}`)}
           <button
             type="button"
@@ -349,20 +440,31 @@
             {#if item.kind === 'slash'}
               <Terminal size={13} class="chat-composer__suggestion-icon" />
               <span class="chat-composer__suggestion-text">
-                <span class="chat-composer__suggestion-title">{item.command.title}</span>
-                <span class="chat-composer__suggestion-desc">{item.command.description}</span>
+                <span class="chat-composer__suggestion-title"
+                  >{item.command.title}</span
+                >
+                <span class="chat-composer__suggestion-desc"
+                  >{item.command.description}</span
+                >
               </span>
             {:else if item.kind === 'tool'}
               <Wrench size={13} class="chat-composer__suggestion-icon" />
               <span class="chat-composer__suggestion-text">
-                <span class="chat-composer__suggestion-title">@{item.name}</span>
-                <span class="chat-composer__suggestion-desc">{item.description}</span>
+                <span class="chat-composer__suggestion-title">@{item.name}</span
+                >
+                <span class="chat-composer__suggestion-desc"
+                  >{item.description}</span
+                >
               </span>
             {:else}
               <Hash size={13} class="chat-composer__suggestion-icon" />
               <span class="chat-composer__suggestion-text">
-                <span class="chat-composer__suggestion-title">#{item.id.slice(0, 8)}</span>
-                <span class="chat-composer__suggestion-desc">{item.toolName} — {item.ok ? 'ok' : 'error'}</span>
+                <span class="chat-composer__suggestion-title"
+                  >#{item.id.slice(0, 8)}</span
+                >
+                <span class="chat-composer__suggestion-desc"
+                  >{item.toolName} — {item.ok ? 'ok' : 'error'}</span
+                >
               </span>
             {/if}
           </button>
@@ -388,7 +490,13 @@
 
   <div class="chat-composer__actions">
     <div class="chat-composer__left">
-      <button type="button" class="chat-composer__icon-btn" aria-label="Add attachments" disabled={busy} onclick={openFilePicker}>
+      <button
+        type="button"
+        class="chat-composer__icon-btn"
+        aria-label="Add attachments"
+        disabled={busy}
+        onclick={openFilePicker}
+      >
         <Paperclip size={14} />
       </button>
 
@@ -409,13 +517,17 @@
         {#if toolsMenuOpen}
           <div class="chat-composer__tools-menu" role="menu">
             <div class="chat-composer__tools-header">
-              <span class="chat-composer__tools-title">Tools ({toolCount})</span>
+              <span class="chat-composer__tools-title">Tools ({toolCount})</span
+              >
               <label class="chat-composer__tools-expose">
                 <span>Expose to agent</span>
                 <input
                   type="checkbox"
                   checked={chatSettings.exposeToolsToAgent}
-                  onchange={(event) => setExposeToolsToAgent((event.currentTarget as HTMLInputElement).checked)}
+                  onchange={(event) =>
+                    setExposeToolsToAgent(
+                      (event.currentTarget as HTMLInputElement).checked,
+                    )}
                 />
               </label>
             </div>
@@ -433,14 +545,20 @@
                 >
                   <Wrench size={12} class="chat-composer__tools-item-icon" />
                   <span class="chat-composer__tools-item-body">
-                    <span class="chat-composer__tools-item-name">{tool.name}</span>
+                    <span class="chat-composer__tools-item-name"
+                      >{tool.name}</span
+                    >
                     {#if tool.description}
-                      <span class="chat-composer__tools-item-desc">{tool.description}</span>
+                      <span class="chat-composer__tools-item-desc"
+                        >{tool.description}</span
+                      >
                     {/if}
                   </span>
                 </button>
               {:else}
-                <p class="chat-composer__tools-empty">No tools available on this page.</p>
+                <p class="chat-composer__tools-empty">
+                  No tools available on this page.
+                </p>
               {/each}
             </div>
           </div>
@@ -478,7 +596,12 @@
       </div>
     </div>
 
-    <button type="submit" class="chat-composer__send" disabled={!canSend || busy} aria-label="Send message">
+    <button
+      type="submit"
+      class="chat-composer__send"
+      disabled={!canSend || busy}
+      aria-label="Send message"
+    >
       {#if busy}
         <Square size={11} fill="currentColor" strokeWidth={0} />
       {:else}
@@ -489,13 +612,28 @@
 </form>
 
 {#if modelMenuOpen}
-  <button type="button" class="chat-composer__scrim" aria-label="Close model menu" onclick={() => (modelMenuOpen = false)}></button>
+  <button
+    type="button"
+    class="chat-composer__scrim"
+    aria-label="Close model menu"
+    onclick={() => (modelMenuOpen = false)}
+  ></button>
 {/if}
 {#if sessionPickerOpen}
-  <button type="button" class="chat-composer__scrim" aria-label="Close session picker" onclick={closeSessionPicker}></button>
+  <button
+    type="button"
+    class="chat-composer__scrim"
+    aria-label="Close session picker"
+    onclick={closeSessionPicker}
+  ></button>
 {/if}
 {#if toolsMenuOpen}
-  <button type="button" class="chat-composer__scrim" aria-label="Close tools menu" onclick={() => (toolsMenuOpen = false)}></button>
+  <button
+    type="button"
+    class="chat-composer__scrim"
+    aria-label="Close tools menu"
+    onclick={() => (toolsMenuOpen = false)}
+  ></button>
 {/if}
 
 <style>
@@ -507,6 +645,7 @@
     flex-shrink: 0;
     margin: 0.5rem;
     padding: 0.5rem;
+    padding-top: 0 !important;
     border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
     border-radius: 0.75rem;
     background: color-mix(in oklab, currentColor 3%, transparent);
@@ -924,7 +1063,9 @@
     background: oklch(var(--p));
     color: oklch(var(--pc));
     cursor: pointer;
-    transition: opacity 120ms ease, filter 120ms ease;
+    transition:
+      opacity 120ms ease,
+      filter 120ms ease;
   }
 
   .chat-composer__send:hover:not(:disabled) {

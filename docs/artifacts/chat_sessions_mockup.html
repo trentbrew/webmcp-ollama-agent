@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebMCP — Per-tab chat sessions (TRL-6 design mock)</title>
+  <style>
+    :root {
+      --b1: 22% 0.02 260;
+      --b2: 26% 0.02 260;
+      --bc: 92% 0.01 260;
+      --p: 62% 0.18 25;
+      --su: 72% 0.15 145;
+      --chat-font-size: 0.8125rem;
+      --surface: color-mix(in oklab, oklch(var(--bc)) 3%, transparent);
+      --border: color-mix(in oklab, oklch(var(--bc)) 12%, transparent);
+      --border-subtle: color-mix(in oklab, oklch(var(--bc)) 8%, transparent);
+      --text-muted: oklch(var(--bc) / 0.65);
+      --radius-lg: 12px;
+      --radius-md: 8px;
+      --spacing-sm: 8px;
+      --spacing-md: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      font-size: var(--chat-font-size);
+      background: oklch(var(--b1));
+      color: oklch(var(--bc));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      gap: 1rem;
+    }
+
+    h1 {
+      font-size: 0.75rem;
+      font-weight: 500;
+      opacity: 0.55;
+      margin: 0;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .panel {
+      width: 100%;
+      max-width: 400px;
+      height: 640px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: oklch(var(--b2));
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .nav {
+      display: flex;
+      gap: 0.25rem;
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.6875rem;
+    }
+    .nav span { padding: 0.25rem 0.5rem; border-radius: 4px; opacity: 0.5; }
+    .nav span.active { background: oklch(var(--p) / 0.15); opacity: 1; color: oklch(var(--p)); }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      position: relative;
+    }
+
+    .view { display: none; flex: 1; flex-direction: column; min-height: 0; }
+    .view.is-active { display: flex; }
+
+    /* Empty state */
+    .empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      text-align: center;
+      gap: 0.625rem;
+    }
+    .empty__icon { font-size: 1.75rem; color: oklch(var(--su)); opacity: 0.85; }
+    .empty__title { font-size: 1.25rem; font-weight: 500; margin: 0; }
+    .empty__subtitle { margin: 0; opacity: 0.65; line-height: 1.5; }
+    .empty__suggestions {
+      width: 100%;
+      max-width: 20rem;
+      margin-top: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      text-align: left;
+    }
+    .suggestion {
+      display: flex;
+      gap: 0.625rem;
+      padding: 0.625rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color 150ms, background 150ms;
+    }
+    .suggestion:hover { border-color: color-mix(in oklab, oklch(var(--bc)) 22%, transparent); }
+    .suggestion__label { font-weight: 600; display: block; }
+    .suggestion__desc { font-size: 0.75rem; opacity: 0.65; display: block; }
+
+    /* Composer */
+    .composer-wrap { position: relative; padding: 0.5rem; flex-shrink: 0; }
+    .composer {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+    }
+    .composer:focus-within { border-color: oklch(var(--p) / 0.5); }
+    .context {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding-bottom: 0.375rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.6875rem;
+      color: oklch(var(--bc) / 0.62);
+    }
+    .context strong { color: oklch(var(--bc) / 0.78); }
+    .picker {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin-bottom: 0.25rem;
+    }
+    .picker[hidden] { display: none; }
+    .picker-empty { opacity: 0.55; font-size: 0.75rem; padding: 0.5rem; margin: 0; }
+    .picker .suggestion.is-selected {
+      border-color: oklch(var(--p) / 0.45);
+      background: oklch(var(--p) / 0.08);
+    }
+    textarea {
+      width: 100%;
+      min-height: 2.5rem;
+      resize: none;
+      border: none;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      outline: none;
+    }
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .send {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      border: none;
+      background: oklch(var(--p));
+      color: white;
+      cursor: pointer;
+    }
+    .scrim {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      border: none;
+      cursor: pointer;
+      z-index: 1;
+    }
+    .scrim[hidden] { display: none; }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    button.toggle {
+      font: inherit;
+      font-size: 0.75rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: inherit;
+      cursor: pointer;
+    }
+    button.toggle[aria-pressed="true"] {
+      border-color: oklch(var(--p) / 0.5);
+      background: oklch(var(--p) / 0.12);
+    }
+
+    .legend {
+      max-width: 400px;
+      font-size: 0.6875rem;
+      opacity: 0.6;
+      line-height: 1.5;
+    }
+    [data-design-note] { outline: 1px dashed oklch(var(--p) / 0.35); outline-offset: 2px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .suggestion { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <h1>WebMCP — Per-tab chat sessions (TRL-6 design mock)</h1>
+
+  <div class="controls">
+    <button type="button" class="toggle" id="btn-empty" aria-pressed="true">Empty state</button>
+    <button type="button" class="toggle" id="btn-picker" aria-pressed="false">Session picker</button>
+    <button type="button" class="toggle" id="btn-archive" aria-pressed="false">Show archive row</button>
+  </div>
+
+  <div class="panel" data-design-note="Sidepanel shell — Nav + transcript + composer">
+    <div class="nav">
+      <span>Home</span>
+      <span class="active">Chat</span>
+      <span>MCP</span>
+      <span>Traces</span>
+    </div>
+    <div class="main">
+      <div class="view is-active" id="view-empty">
+        <div class="empty" data-design-note="ChatEmptyState — MCP tool count drives icon + suggestions">
+          <div class="empty__icon" aria-hidden="true">◎</div>
+          <p class="empty__title">3 tools ready</p>
+          <p class="empty__subtitle">Ask about page tools, traces, or console — model qwen3.5-9b</p>
+          <div class="empty__suggestions" role="group" aria-label="Suggested prompts">
+            <button type="button" class="suggestion">
+              <span>🔧</span>
+              <span>
+                <span class="suggestion__label">search_docs</span>
+                <span class="suggestion__desc">Search the page documentation index</span>
+              </span>
+            </button>
+            <button type="button" class="suggestion">
+              <span>⌘</span>
+              <span>
+                <span class="suggestion__label">List page tools</span>
+                <span class="suggestion__desc">See what WebMCP tools are available on this tab</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="view" id="view-transcript">
+        <div style="flex:1;padding:1rem;opacity:0.4;font-size:0.75rem;">Transcript area (messages scroll)</div>
+      </div>
+      <div class="composer-wrap">
+        <button type="button" class="scrim" id="scrim" hidden aria-label="Close session picker"></button>
+        <div class="composer" data-design-note="ChatComposer — context bar + picker + textarea">
+          <div class="context">
+            <span>↗</span>
+            <strong>API Reference — MDN</strong>
+            <span>developer.mozilla.org</span>
+            <span>· 4 tabs</span>
+          </div>
+          <div class="picker" id="picker" hidden role="listbox" aria-label="Resume conversation">
+            <button type="button" class="suggestion is-selected" role="option" aria-selected="true">
+              <span>↗</span>
+              <span>
+                <span class="suggestion__label">GitHub — trentbrew/webmcp</span>
+                <span class="suggestion__desc">12 messages · github.com</span>
+              </span>
+            </button>
+            <button type="button" class="suggestion" role="option" aria-selected="false" id="archive-row" hidden>
+              <span>↗</span>
+              <span>
+                <span class="suggestion__label">Linear — TRL board (archived)</span>
+                <span class="suggestion__desc">8 messages · linear.app</span>
+              </span>
+            </button>
+          </div>
+          <textarea placeholder="Message Ollama… (@ tool · # trace · / command)" aria-label="Message"></textarea>
+          <div class="actions">
+            <span style="opacity:0.5;font-size:0.6875rem;">/resume opens picker</span>
+            <button type="button" class="send" aria-label="Send message">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="legend">
+    Toggle views to inspect states. Token parity: YAML in <code>chat_sessions_design.md</code> ↔ <code>:root</code> above.
+    Picker rows reuse composer suggestion styling; scrim dismisses on click.
+  </p>
+
+  <script>
+    const btnEmpty = document.getElementById('btn-empty');
+    const btnPicker = document.getElementById('btn-picker');
+    const btnArchive = document.getElementById('btn-archive');
+    const viewEmpty = document.getElementById('view-empty');
+    const viewTranscript = document.getElementById('view-transcript');
+    const picker = document.getElementById('picker');
+    const scrim = document.getElementById('scrim');
+    const archiveRow = document.getElementById('archive-row');
+
+    function setPressed(btn, on) { btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+
+    btnEmpty.addEventListener('click', () => {
+      const on = btnEmpty.getAttribute('aria-pressed') !== 'true';
+      setPressed(btnEmpty, on);
+      if (on) { viewEmpty.classList.add('is-active'); viewTranscript.classList.remove('is-active'); }
+      else { viewEmpty.classList.remove('is-active'); viewTranscript.classList.add('is-active'); }
+    });
+
+    btnPicker.addEventListener('click', () => {
+      const on = btnPicker.getAttribute('aria-pressed') !== 'true';
+      setPressed(btnPicker, on);
+      picker.hidden = !on;
+      scrim.hidden = !on;
+      if (on) { viewEmpty.classList.remove('is-active'); viewTranscript.classList.add('is-active'); setPressed(btnEmpty, false); }
+    });
+
+    scrim.addEventListener('click', () => {
+      setPressed(btnPicker, false);
+      picker.hidden = true;
+      scrim.hidden = true;
+    });
+
+    btnArchive.addEventListener('click', () => {
+      const on = btnArchive.getAttribute('aria-pressed') !== 'true';
+      setPressed(btnArchive, on);
+      archiveRow.hidden = !on;
+    });
+  </script>
+</body>
+</html>

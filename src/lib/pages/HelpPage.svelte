@@ -17,6 +17,16 @@
         'Navigate through the extension using the dock icons at the bottom. Start with the Home page to explore features.',
     },
     {
+      question: 'How does per-tab chat work?',
+      answer:
+        'Each browser tab has its own chat transcript. Switching tabs in Chrome switches the sidepanel to that tab’s conversation. Messages are saved locally per tab.',
+    },
+    {
+      question: 'What chat slash commands are available?',
+      answer:
+        'Type / in the composer: /new starts a fresh conversation for the current tab; /resume opens the session picker for other tabs and archived chats; /reset clears the current session; /model opens the model picker.',
+    },
+    {
       question: 'How do I change the theme?',
       answer:
         'Click the theme toggle button in the top-right corner or visit Settings to switch between light and dark modes.',

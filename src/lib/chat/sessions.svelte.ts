@@ -2,6 +2,7 @@ import { backfillMessageTimestamps } from '../ai/messages';
 import type { ChatStatus, UIMessage } from '../ai/protocol';
 import {
   archiveTabSession,
+  gatherResumableSessions,
   getArchivedSession,
   loadArchivedSessions,
   loadTabChat,
@@ -41,9 +42,10 @@ export const chatSessionState = $state({
   activeTabId: null as number | null,
   /** When set, the UI shows this detached archive instead of the active tab session. */
   detached: null as DetachedChatSession | null,
+  /** Per-tab chat sessions keyed by browser tab id. */
+  byTabId: {} as Record<number, TabChatSession>,
 });
 
-const sessions = new Map<number, TabChatSession>();
 const abortControllers = new Map<number, AbortController>();
 
 let initialized = false;
@@ -52,26 +54,24 @@ function isExtensionRuntime() {
   return typeof chrome !== 'undefined' && Boolean(chrome.runtime?.id);
 }
 
-function createEmptySession(tabId: number, url: string | null = null, title: string | null = null): TabChatSession {
+function createEmptySessionData(tabId: number, url: string | null = null, title: string | null = null): TabChatSession {
   const persisted = loadTabChat(tabId);
-  return $state({
+  return {
     tabId,
     messages: backfillMessageTimestamps(persisted?.messages ?? []),
-    status: 'ready' as ChatStatus,
+    status: 'ready',
     error: null,
     url: persisted?.url ?? url,
     title: persisted?.title ?? title,
     updatedAt: persisted?.updatedAt ?? Date.now(),
-  });
+  };
 }
 
 export function getChatForTab(tabId: number): TabChatSession {
-  let session = sessions.get(tabId);
-  if (!session) {
-    session = createEmptySession(tabId);
-    sessions.set(tabId, session);
+  if (!chatSessionState.byTabId[tabId]) {
+    chatSessionState.byTabId[tabId] = createEmptySessionData(tabId);
   }
-  return session;
+  return chatSessionState.byTabId[tabId];
 }
 
 export function getActiveChatSession(): TabChatSession | null {
@@ -109,7 +109,7 @@ export function persistSession(session: TabChatSession | DetachedChatSession) {
 }
 
 export function updateSessionMeta(tabId: number, url?: string | null, title?: string | null) {
-  const session = sessions.get(tabId);
+  const session = chatSessionState.byTabId[tabId];
   if (!session) return;
   if (url !== undefined) session.url = url;
   if (title !== undefined) session.title = title;
@@ -119,6 +119,14 @@ export function updateSessionMeta(tabId: number, url?: string | null, title?: st
 
 function clearDetachedView() {
   chatSessionState.detached = null;
+}
+
+/** Leave detached archive view and return to the active browser tab's session. */
+export async function exitDetachedArchive() {
+  if (!chatSessionState.detached) return;
+  clearDetachedView();
+  const tabId = await resolveActiveTabId();
+  if (tabId != null) await activateTab(tabId);
 }
 
 async function resolveActiveTabId(): Promise<number | null> {
@@ -150,7 +158,7 @@ export async function initChatSessionTracking() {
   });
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (!sessions.has(tabId) && tabId !== chatSessionState.activeTabId) return;
+    if (!chatSessionState.byTabId[tabId] && tabId !== chatSessionState.activeTabId) return;
     updateSessionMeta(
       tabId,
       changeInfo.url ?? tab.url ?? undefined,
@@ -159,13 +167,13 @@ export async function initChatSessionTracking() {
   });
 
   chrome.tabs.onRemoved.addListener((tabId) => {
-    const session = sessions.get(tabId);
+    const session = chatSessionState.byTabId[tabId];
     if (session && session.messages.length > 0) {
       archiveTabSession(tabId, session.messages, session.url, session.title);
     }
     abortControllers.get(tabId)?.abort();
     abortControllers.delete(tabId);
-    sessions.delete(tabId);
+    delete chatSessionState.byTabId[tabId];
     removeTabChat(tabId);
 
     if (chatSessionState.activeTabId === tabId) {
@@ -232,48 +240,32 @@ export function isChatBusy(tabId?: number): boolean {
 
   const id = tabId ?? chatSessionState.activeTabId;
   if (id == null) return false;
-  const session = sessions.get(id);
+  const session = chatSessionState.byTabId[id];
   if (!session) return false;
   return session.status === 'submitted' || session.status === 'streaming';
 }
 
 export async function listResumableSessions(): Promise<ResumableSession[]> {
-  const results: ResumableSession[] = [];
   const activeId = chatSessionState.activeTabId;
+  const tabs = isExtensionRuntime()
+    ? (await chrome.tabs.query({ currentWindow: true })).flatMap((tab) =>
+        tab.id != null ? [{ id: tab.id, title: tab.title, url: tab.url }] : [],
+      )
+    : [];
 
-  if (isExtensionRuntime()) {
-    const tabs = await chrome.tabs.query({ currentWindow: true });
-    for (const tab of tabs) {
-      if (tab.id == null || tab.id === activeId) continue;
-      const live = sessions.get(tab.id);
-      const persisted = loadTabChat(tab.id);
-      const messageCount = live?.messages.length ?? persisted?.messages.length ?? 0;
-      if (messageCount === 0) continue;
-
-      results.push({
-        kind: 'open',
-        tabId: tab.id,
-        title: tab.title ?? live?.title ?? persisted?.title ?? null,
-        url: tab.url ?? live?.url ?? persisted?.url ?? null,
-        messageCount,
-        updatedAt: live?.updatedAt ?? persisted?.updatedAt ?? 0,
-      });
-    }
+  const liveByTabId: Record<number, { messages: TabChatSession['messages']; title: string | null; url: string | null; updatedAt: number }> =
+    {};
+  for (const [key, session] of Object.entries(chatSessionState.byTabId)) {
+    liveByTabId[Number(key)] = session;
   }
 
-  for (const archive of loadArchivedSessions()) {
-    results.push({
-      kind: 'archive',
-      id: archive.id,
-      tabId: archive.tabId,
-      title: archive.title,
-      url: archive.url,
-      messageCount: archive.messages.length,
-      closedAt: archive.closedAt,
-    });
-  }
-
-  return results;
+  return gatherResumableSessions(
+    activeId,
+    tabs,
+    liveByTabId,
+    loadTabChat,
+    loadArchivedSessions(),
+  );
 }
 
 export async function resumeSession(target: ResumeTarget) {
@@ -286,16 +278,16 @@ export async function resumeSession(target: ResumeTarget) {
   const archive = getArchivedSession(target.id);
   if (!archive) return;
 
-  chatSessionState.detached = $state({
+  chatSessionState.detached = {
     archiveId: archive.id,
     tabId: archive.tabId,
     messages: backfillMessageTimestamps(archive.messages),
-    status: 'ready' as ChatStatus,
+    status: 'ready',
     error: null,
     url: archive.url,
     title: archive.title,
     updatedAt: archive.closedAt,
-  });
+  };
 }
 
 export function clearDetachedArchiveOnEdit() {

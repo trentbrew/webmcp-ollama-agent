@@ -15,6 +15,7 @@ export const chatSettings = $state({
 
 export function setKeepThinkingOpen(value: boolean) {
   chatSettings.keepThinkingOpen = value;
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
 }
 
 export function setInferenceOption<K extends keyof typeof chatSettings.inference>(
@@ -22,19 +23,23 @@ export function setInferenceOption<K extends keyof typeof chatSettings.inference
   value: (typeof chatSettings.inference)[K],
 ) {
   chatSettings.inference[key] = value;
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
 }
 
 export function resetInferenceOptions() {
   Object.assign(chatSettings.inference, DEFAULT_INFERENCE_OPTIONS);
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
 }
 
 /** Reset a single inference parameter to its shipped default (e.g. on double-click). */
 export function resetInferenceOption<K extends keyof typeof chatSettings.inference>(key: K) {
   chatSettings.inference[key] = DEFAULT_INFERENCE_OPTIONS[key];
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
 }
 
 export function setExposeToolsToAgent(value: boolean) {
   chatSettings.exposeToolsToAgent = value;
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
 }
 
 export const chatModelCatalog = $state({
@@ -47,10 +52,12 @@ let modelsLoaded = $state(false);
 
 export function setChatModel(model: string) {
   chatSettings.model = model;
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
 }
 
 export function setOllamaBaseUrl(baseUrl: string) {
   chatSettings.baseUrl = baseUrl.replace(/\/+$/, '');
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
   void configureOllamaBridge(chatSettings.baseUrl);
   modelsLoaded = false;
   void loadAvailableModels(true);

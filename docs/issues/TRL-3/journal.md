@@ -24,3 +24,9 @@
 
 Landed `pi-lane-smoke.mjs` + `pi-pipeline-smoke.mjs` (clone OpenCode with `pi:` namespace).
 Updated `pi-compat.md` verify section + manager skill smoke row.
+
+## 2026-09-01 — Strategist ship (TRL-3/4)
+
+**Review:** TRL-5 PASS on TRL-4 (e2e waived — tooling wedge).
+**Closed:** TRL-4 (spec+impl), TRL-3 (parent ops).
+**TRL-1 parity arc:** TRL-1 → TRL-2 (parity pack) → TRL-3 → TRL-4 (runtime smokes) — complete.

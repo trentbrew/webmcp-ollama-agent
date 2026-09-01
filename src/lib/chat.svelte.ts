@@ -13,6 +13,7 @@ import { expandMentions } from './chat/mentions';
 import {
   chatSessionState,
   clearDetachedArchiveOnEdit,
+  exitDetachedArchive,
   getAbortController,
   getDisplayedChatSession,
   initChatSessionTracking,
@@ -34,6 +35,7 @@ import { BUILTIN_TOOL_NAMES, buildAgentTools, buildAgentToolSummaries, isBuiltin
 
 export {
   chatSessionState,
+  exitDetachedArchive,
   getDisplayedChatSession,
   initChatSessionTracking,
   isChatBusy,

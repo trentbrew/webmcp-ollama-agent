@@ -1,8 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { RotateCw } from '../icons';
-  import { chatSessionState, getChat, isChatBusy, resetChat } from '../chat.svelte';
-  import { loadAvailableModels, syncChatPersistence } from '../chat/settings.svelte';
+  import { RotateCw, X } from '../icons';
+  import {
+    chatSessionState,
+    exitDetachedArchive,
+    getChat,
+    isChatBusy,
+    resetChat,
+  } from '../chat.svelte';
+  import {
+    loadAvailableModels,
+    syncChatPersistence,
+  } from '../chat/settings.svelte';
   import { browserContext } from '../browser/context.svelte';
   import ChatEmptyState from '../components/chat/ChatEmptyState.svelte';
   import ChatTranscript from '../components/chat/ChatTranscript.svelte';
@@ -64,20 +73,35 @@
     {#if !isDetached && activeTab?.favIconUrl}
       <img class="chat-page__favicon" src={activeTab.favIconUrl} alt="" />
     {/if}
-    <span class="chat-page__title truncate" title={toolbarTitle}>{toolbarTitle}</span>
+    <span class="chat-page__title truncate" title={toolbarTitle}
+      >{toolbarTitle}</span
+    >
     {#if toolbarHost}
       <span class="chat-page__host truncate">{toolbarHost}</span>
     {/if}
     {#if isDetached}
       <span class="chat-page__badge">archived</span>
+      <button
+        type="button"
+        class="chat-page__dismiss"
+        aria-label="Return to active tab"
+        disabled={busy}
+        onclick={() => void exitDetachedArchive()}
+      >
+        <X size={12} />
+      </button>
     {/if}
-    <span class="chat-page__count">{messages.length} msg{messages.length === 1 ? '' : 's'}</span>
+    <span class="chat-page__count"
+      >{messages.length} msg{messages.length === 1 ? '' : 's'}</span
+    >
     {#if streaming}
       <span class="chat-page__dot" aria-hidden="true">·</span>
       <span class="chat-page__detail">streaming…</span>
     {:else if hasError}
       <span class="chat-page__dot" aria-hidden="true">·</span>
-      <span class="chat-page__detail chat-page__detail--error">{chat.error ?? 'error'}</span>
+      <span class="chat-page__detail chat-page__detail--error"
+        >{chat.error ?? 'error'}</span
+      >
     {/if}
     <button
       type="button"
@@ -148,6 +172,30 @@
     font-size: 0.625rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+
+  .chat-page__dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
+    opacity: 0.65;
+    cursor: pointer;
+  }
+
+  .chat-page__dismiss:hover:not(:disabled) {
+    opacity: 1;
+    background: color-mix(in oklab, currentColor 8%, transparent);
+  }
+
+  .chat-page__dismiss:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 
   .chat-page__count {
