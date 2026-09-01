@@ -64,7 +64,7 @@
       <div class="flex flex-wrap gap-4 justify-center p-4">
         <div class="flex flex-col items-center gap-2">
           <Icon icon={Shield} size={48} class="text-info" />
-          <Badge variant="info">Shield</Badge>
+          <Badge variant="primary">Shield</Badge>
         </div>
 
         <div class="flex flex-col items-center gap-2">
@@ -74,12 +74,12 @@
 
         <div class="flex flex-col items-center gap-2">
           <Icon icon={AlertCircle} size={48} class="text-warning" />
-          <Badge variant="warning">Alert</Badge>
+          <Badge variant="secondary">Alert</Badge>
         </div>
 
         <div class="flex flex-col items-center gap-2">
           <Icon icon={Coffee} size={48} class="text-accent" />
-          <Badge variant="accent">Coffee</Badge>
+          <Badge variant="outline">Coffee</Badge>
         </div>
 
         <div class="flex flex-col items-center gap-2">
@@ -108,17 +108,17 @@
           <Button variant="primary">Primary</Button>
           <Button variant="secondary">Secondary</Button>
           <Button variant="accent">Accent</Button>
-          <Button variant="success">Success</Button>
-          <Button variant="warning">Warning</Button>
+          <Button variant="primary">Success</Button>
+          <Button variant="secondary">Warning</Button>
           <Button variant="error">Error</Button>
         </div>
 
         <div class="flex gap-2 flex-wrap">
           <Badge variant="primary">Primary</Badge>
           <Badge variant="secondary">Secondary</Badge>
-          <Badge variant="accent">Accent</Badge>
+          <Badge variant="primary">Accent</Badge>
           <Badge variant="success">Success</Badge>
-          <Badge variant="warning">Warning</Badge>
+          <Badge variant="secondary">Warning</Badge>
           <Badge variant="error">Error</Badge>
         </div>
 
