@@ -31,11 +31,9 @@
 
   <!-- Status Alert -->
   <Alert variant="success" showIcon={true}>
-    {#snippet title()}
-      Shadow DOM Active
-    {/snippet}
     {#snippet children()}
-      All styles (Tailwind, DaisyUI, Lucide icons) are properly isolated and working!
+      <strong>Shadow DOM Active</strong> — All styles (Tailwind, DaisyUI, Lucide
+      icons) are properly isolated and working!
     {/snippet}
   </Alert>
 
@@ -125,11 +123,9 @@
         </div>
 
         <Alert variant="info" showIcon={true}>
-          {#snippet title()}
-            Information
-          {/snippet}
           {#snippet children()}
-            This is an info alert with an icon inside shadow DOM!
+            <strong>Information</strong> — This is an info alert with an icon inside
+            shadow DOM!
           {/snippet}
         </Alert>
       </div>
@@ -140,7 +136,11 @@
   <Card title="Technical Details" bordered={true}>
     {#snippet children()}
       <ul class="list-disc list-inside space-y-2 text-base-content/80">
-        <li>Shadow DOM mode: <code class="bg-base-200 px-2 py-1 rounded">open</code></li>
+        <li>
+          Shadow DOM mode: <code class="bg-base-200 px-2 py-1 rounded"
+            >open</code
+          >
+        </li>
         <li>CSS isolation: <Badge variant="success">Active</Badge></li>
         <li>Tailwind utilities: <Badge variant="success">Working</Badge></li>
         <li>DaisyUI components: <Badge variant="success">Working</Badge></li>

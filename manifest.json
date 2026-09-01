@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Svelte Side Panel Extension",
+  "name": "WebMCP Agent Substrate",
   "version": "1.0.0",
-  "description": "A Chrome extension with side panel built using Svelte",
+  "description": "WebMCP Agent Substrate — an AI agent in your side panel with WebMCP tool access and local Ollama chat.",
   "side_panel": {
     "default_path": "index.html"
   },

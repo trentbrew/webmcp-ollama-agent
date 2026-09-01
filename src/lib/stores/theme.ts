@@ -73,7 +73,7 @@ export const AVAILABLE_THEMES: Theme[] = [
 const STORAGE_KEY = 'svelte5-extension-theme';
 
 // Initialize from localStorage or default to 'light'
-const storedTheme = (localStorage.getItem(STORAGE_KEY) as Theme) || 'light';
+const storedTheme = (localStorage.getItem(STORAGE_KEY) as Theme) || 'dark';
 export const theme = writable<Theme>(storedTheme);
 
 // Subscribe to save theme changes to localStorage

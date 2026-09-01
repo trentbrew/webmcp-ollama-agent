@@ -4,7 +4,7 @@
  * Import icons here to keep bundle size minimal and maintain consistency
  */
 
-export { 
+export {
   Home,
   Settings,
   HelpCircle,
@@ -14,6 +14,7 @@ export {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Search,
   Plus,
   Minus,
@@ -26,11 +27,29 @@ export {
   Shield,
   Book,
   MessageCircle,
+  MessageCircleDashed,
   ExternalLink,
   Grid3x3,
   Layers,
   Coffee,
   Heart,
+  ArrowUp,
+  Paperclip,
+  RotateCw,
+  Copy,
+  Brain,
+  Square,
+  File,
+  Radar,
+  Play,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Layout,
+  Activity,
+  Terminal,
+  Wrench,
+  Hash,
 } from '@lucide/svelte';
 
 // Re-export types

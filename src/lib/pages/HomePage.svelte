@@ -76,7 +76,7 @@
   </div>
 
   <!-- Interactive Card -->
-  <div class="card bg-base-200 shadow-xl">
+  <div class="card thread-card">
     <div class="card-body">
       <h2 class="card-title">Counter Demo</h2>
       <p>Test Svelte 5 reactivity with this simple counter.</p>
@@ -93,7 +93,7 @@
 
   <!-- Feature Cards Grid -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="card bg-base-200 shadow-xl">
+    <div class="card thread-card">
       <div class="card-body">
         <h3 class="card-title text-lg">Modern Stack</h3>
         <p class="text-sm">
@@ -102,7 +102,7 @@
       </div>
     </div>
 
-    <div class="card bg-base-200 shadow-xl">
+    <div class="card thread-card">
       <div class="card-body">
         <h3 class="card-title text-lg">DaisyUI Components</h3>
         <p class="text-sm">
@@ -119,14 +119,14 @@
       </div>
     </div>
 
-    <div class="card bg-base-200 shadow-xl">
+    <div class="card thread-card">
       <div class="card-body">
         <h3 class="card-title text-lg">Lucide Icons</h3>
         <p class="text-sm">High-quality SVG icons that work with Chrome CSP</p>
       </div>
     </div>
 
-    <div class="card bg-base-200 shadow-xl">
+    <div class="card thread-card">
       <div class="card-body">
         <h3 class="card-title text-lg">Type Safety</h3>
         <p class="text-sm">Full TypeScript support for better DX</p>

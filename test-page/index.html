@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>WebMCP test page</title>
+    <style>
+      body {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        max-width: 32rem;
+        margin: 3rem auto;
+        line-height: 1.5;
+        color: #18181b;
+      }
+      code {
+        background: #f4f4f5;
+        padding: 0.1em 0.4em;
+        border-radius: 0.25em;
+      }
+      #log {
+        white-space: pre-wrap;
+        font-family: ui-monospace, monospace;
+        font-size: 0.8rem;
+        background: #f4f4f5;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        min-height: 3rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WebMCP test page</h1>
+    <p>
+      This page has no native <code>document.modelContext</code>, so it installs a minimal shim matching the
+      spec's shape (<code>registerTool</code> / <code>getTools</code> / <code>toolchange</code> event), then
+      registers three tools for testing the webmcp extension's side panel:
+    </p>
+    <ul>
+      <li><code>echo(message)</code> — returns <code>{ echoed: message }</code></li>
+      <li><code>add(a, b)</code> — returns <code>{ sum: a + b }</code></li>
+      <li><code>boom()</code> — always throws, to test error-trace handling</li>
+    </ul>
+    <p>Open the extension's side panel, go to the MCP tab, and confirm the tools show up.</p>
+    <div id="log">waiting for registration…</div>
+
+    <script>
+      // Minimal spec-shaped shim of document.modelContext, matching the
+      // webmcp-types v0.1.5 contract (registerTool/getTools/toolchange event).
+      // Only present so this page has something for the extension to detect --
+      // a real WebMCP-enabled site (or Chrome behind the WebMCP flag) would
+      // already provide document.modelContext natively.
+      (function installShim() {
+        const tools = new Map();
+        const target = new EventTarget();
+
+        const modelContext = {
+          async registerTool(tool, _options) {
+            tools.set(tool.name, tool);
+            target.dispatchEvent(new Event('toolchange'));
+          },
+          async getTools(_options) {
+            return [...tools.values()].map(({ execute, ...meta }) => meta);
+          },
+          addEventListener: target.addEventListener.bind(target),
+          removeEventListener: target.removeEventListener.bind(target),
+        };
+
+        Object.defineProperty(document, 'modelContext', {
+          configurable: true,
+          enumerable: true,
+          value: modelContext,
+        });
+      })();
+
+      async function registerTools() {
+        await document.modelContext.registerTool({
+          name: 'echo',
+          title: 'Echo',
+          description: 'Returns the message it was given.',
+          inputSchema: {
+            type: 'object',
+            properties: { message: { type: 'string' } },
+            required: ['message'],
+          },
+          async execute({ message }) {
+            return { echoed: message };
+          },
+        });
+
+        await document.modelContext.registerTool({
+          name: 'add',
+          title: 'Add',
+          description: 'Adds two numbers.',
+          inputSchema: {
+            type: 'object',
+            properties: { a: { type: 'number' }, b: { type: 'number' } },
+            required: ['a', 'b'],
+          },
+          async execute({ a, b }) {
+            return { sum: a + b };
+          },
+        });
+
+        await document.modelContext.registerTool({
+          name: 'boom',
+          title: 'Boom',
+          description: 'Always throws, for testing error handling.',
+          inputSchema: { type: 'object', properties: {} },
+          async execute() {
+            throw new Error('boom always fails');
+          },
+        });
+
+        document.getElementById('log').textContent = 'registered: echo, add, boom';
+      }
+
+      registerTools();
+    </script>
+  </body>
+</html>
