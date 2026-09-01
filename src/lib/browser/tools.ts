@@ -1,11 +1,25 @@
 import type { OllamaTool } from '../ai/protocol';
 import { browserContext, listBrowserTabs, refreshBrowserContext } from './context.svelte';
+import { samplePageTheme } from '../theme/sampler';
+import { buildPageTheme } from '../theme/buildTheme';
+import {
+  pageThemeState,
+  syncFromTab,
+  applyPageTheme,
+  clearPageTheme,
+  setAutoMatch,
+} from '../theme/pageTheme.svelte';
+import type { SampledPage } from '../theme/sampler';
 
 type ToolResult = { ok: boolean; result?: unknown; error?: string };
 
 export const BROWSER_TOOL_NAMES = {
   currentTab: 'browser_current_tab',
   listTabs: 'browser_list_tabs',
+  samplePageTheme: 'browser_sample_page_theme',
+  applyPageTheme: 'browser_apply_page_theme',
+  clearPageTheme: 'browser_clear_page_theme',
+  setAutoMatchPageTheme: 'browser_set_auto_match_page_theme',
 } as const;
 
 const BROWSER_TOOL_NAME_SET = new Set<string>(Object.values(BROWSER_TOOL_NAMES));
@@ -20,10 +34,7 @@ export const BROWSER_TOOLS: OllamaTool[] = [
     function: {
       name: BROWSER_TOOL_NAMES.currentTab,
       description: 'Read the active Chrome tab context: title, URL, window id, and tab state. Read-only.',
-      parameters: {
-        type: 'object',
-        properties: {},
-      },
+      parameters: { type: 'object', properties: {} },
     },
   },
   {
@@ -37,6 +48,42 @@ export const BROWSER_TOOLS: OllamaTool[] = [
           allWindows: { type: 'boolean', description: 'When true, include tabs from all Chrome windows. Defaults to false.' },
           limit: { type: 'number', description: 'Maximum tabs to return. Defaults to 20, capped at 100.' },
         },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: BROWSER_TOOL_NAMES.samplePageTheme,
+      description: 'Sample the active tab\'s live-DOM palette: area-weighted computed styles, CSS custom properties, border radii, and font stacks. Returns the raw sample plus a scored PageTheme object.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: BROWSER_TOOL_NAMES.applyPageTheme,
+      description: 'Apply the most recently sampled page theme\'s CSS variables to the extension panel\'s root element, overriding the active daisyUI theme. No-op if no page theme has been sampled.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: BROWSER_TOOL_NAMES.clearPageTheme,
+      description: 'Remove page-theme CSS variables from the panel root and restore the named daisyUI theme.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: BROWSER_TOOL_NAMES.setAutoMatchPageTheme,
+      description: 'Enable or disable auto-match: when on, re-syncs the page theme whenever the active tab changes.',
+      parameters: {
+        type: 'object',
+        properties: { enabled: { type: 'boolean', description: 'Enable auto-match.' } },
+        required: ['enabled'],
       },
     },
   },
@@ -71,6 +118,33 @@ export async function runBrowserTool(name: string, args: unknown): Promise<ToolR
           },
         };
       }
+
+      case BROWSER_TOOL_NAMES.samplePageTheme: {
+        await refreshBrowserContext();
+        const tabId = browserContext.activeTab?.id;
+        if (!tabId) return { ok: false, error: 'No active tab' };
+        const [{ result }] = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: samplePageTheme,
+        }) as unknown as [{ result: SampledPage }];
+        const pageTheme = buildPageTheme(result);
+        return { ok: true, result: { sample: result, pageTheme } };
+      }
+
+      case BROWSER_TOOL_NAMES.applyPageTheme:
+        applyPageTheme();
+        return { ok: true, result: { applied: !!pageThemeState.pageTheme } };
+
+      case BROWSER_TOOL_NAMES.clearPageTheme:
+        clearPageTheme();
+        return { ok: true, result: { cleared: true } };
+
+      case BROWSER_TOOL_NAMES.setAutoMatchPageTheme:
+        setAutoMatch(Boolean(input.enabled));
+        return {
+          ok: true,
+          result: { autoMatch: pageThemeState.autoMatch },
+        };
 
       default:
         return { ok: false, error: `Unhandled browser tool "${name}".` };

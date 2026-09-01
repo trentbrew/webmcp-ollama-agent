@@ -26,4 +26,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.trellis/
+.trellis/*
+# ...except the test harness config, which travels with the repo
+# (see docs/issues/README.md)
+!.trellis/tests.json
+!.trellis/browser-suites/
+.trellis/browser-suites/*
+!.trellis/browser-suites/*.json

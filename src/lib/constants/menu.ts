@@ -6,7 +6,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { icon: MessageCircle, label: 'Chat', action: () => navigateTo('chat') },
   { icon: Radar, label: 'MCP', action: () => navigateTo('mcp') },
   { icon: Activity, label: 'Traces', action: () => navigateTo('traces') },
-  { icon: Layers, label: 'Trellis', action: () => navigateTo('trellis') },
+  { icon: Layers, label: 'Facts', action: () => navigateTo('facts') },
   { icon: Settings, label: 'Settings', action: () => navigateTo('settings') },
   { icon: HelpCircle, label: 'Help', action: () => navigateTo('help') },
 ];

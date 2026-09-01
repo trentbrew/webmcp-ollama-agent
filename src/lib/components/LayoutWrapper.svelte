@@ -8,12 +8,8 @@
   import { Activity, HelpCircle, MessageCircle, Radar, Settings } from '../icons';
 
   import ChatPage from '../pages/ChatPage.svelte';
-  import McpPage from '../pages/McpPage.svelte';
-  import TracesPage from '../pages/TracesPage.svelte';
-  import SettingsPage from '../pages/SettingsPage.svelte';
-  import HelpPage from '../pages/HelpPage.svelte';
+  import { ShellPageHost } from './shell';
 
-  // Ordered list of pages that appear as tabs in the docking layout.
   const TAB_ORDER: PageType[] = ['chat', 'mcp', 'traces', 'settings', 'help'];
 
   const pageTitles: Record<string, string> = {
@@ -23,6 +19,8 @@
     settings: 'Settings',
     help: 'Help',
   };
+
+  const SHELL_PAGES = new Set<PageType>(['mcp', 'traces', 'settings', 'help']);
 
   const views = new SvelteMap<Id, { title: string; snippet: any; tabControls?: any[] }>([
     ['chat', { title: pageTitles.chat, snippet: chatSnippet, tabControls: [tabIcon] }],
@@ -39,14 +37,12 @@
     },
   });
 
-  // Guard against feedback loops between the two syncing effects.
   let lastSyncedPage: PageType = $currentPage;
 
   function isTabGroup(node: NodeConfig | undefined): node is TabGroupConfig {
     return !!node && 'tabs' in node;
   }
 
-  /** Depth-first search for the tab group that currently owns `pageId`. */
   function findTabGroupWith(node: NodeConfig | undefined, pageId: Id): TabGroupConfig | undefined {
     if (!node) return undefined;
     if (isTabGroup(node)) {
@@ -59,7 +55,6 @@
     return undefined;
   }
 
-  /** Resolve the active view id from the (first) root tab group. */
   function activeViewId(node: NodeConfig | undefined): PageType | undefined {
     if (!node) return undefined;
     if (isTabGroup(node)) {
@@ -72,7 +67,6 @@
     return undefined;
   }
 
-  // navigation store -> layout: activate the tab for the current page.
   $effect(() => {
     const page = $currentPage;
     if (page === lastSyncedPage) return;
@@ -86,7 +80,6 @@
     lastSyncedPage = page;
   });
 
-  // layout -> navigation store: when the user clicks/keys a tab, navigate.
   $effect(() => {
     const active = activeViewId(config.root);
     if (active && active !== lastSyncedPage) {
@@ -106,20 +99,29 @@
     {/if}
   </span>
 {/snippet}
+
 {#snippet chatSnippet()}
   <div class="pane-fill"><ChatPage /></div>
 {/snippet}
+
+{#snippet shellSnippet(page: PageType)}
+  <div class="pane-fill"><ShellPageHost {page} /></div>
+{/snippet}
+
 {#snippet mcpSnippet()}
-  <div class="pane-fill"><McpPage /></div>
+  {@render shellSnippet('mcp')}
 {/snippet}
+
 {#snippet tracesSnippet()}
-  <div class="pane-fill"><TracesPage /></div>
+  {@render shellSnippet('traces')}
 {/snippet}
+
 {#snippet settingsSnippet()}
-  <div class="pane-scroll"><SettingsPage /></div>
+  {@render shellSnippet('settings')}
 {/snippet}
+
 {#snippet helpSnippet()}
-  <div class="pane-scroll"><HelpPage /></div>
+  {@render shellSnippet('help')}
 {/snippet}
 
 <div class="layout-wrapper">
@@ -139,13 +141,6 @@
     flex-direction: column;
   }
 
-  .pane-scroll {
-    height: 100%;
-    overflow-y: auto;
-    padding: 1rem;
-  }
-
-  /* Put the per-tab icon (rendered via tabControls) before the label. */
   :global(.horizon-layout-tabgroup__tab-controls) {
     order: 0;
   }

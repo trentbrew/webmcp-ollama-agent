@@ -1,0 +1,8 @@
+{
+  "steps": [
+    { "type": "visible", "selector": "#log" },
+    { "type": "wait", "ms": 500 },
+    { "type": "text", "selector": "#log", "includes": "registered: echo, add, boom" },
+    { "type": "noConsoleErrors" }
+  ]
+}

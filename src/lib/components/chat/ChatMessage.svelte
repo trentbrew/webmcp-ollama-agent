@@ -16,6 +16,7 @@
   import { renderMarkdown } from '../../chat/markdown';
   import ThinkingBlock from './ThinkingBlock.svelte';
   import ToolCallCard from './ToolCallCard.svelte';
+  import QuestionnaireCard from './QuestionnaireCard.svelte';
 
   let {
     message,
@@ -33,6 +34,9 @@
   const files = $derived(message.parts.filter((part) => part.type === 'file'));
   const toolResult = $derived(
     message.parts.find((part) => part.type === 'tool-result'),
+  );
+  const questionnaires = $derived(
+    message.parts.filter((part) => part.type === 'questionnaire'),
   );
   const streaming = $derived(isMessageStreaming(message, chatStatus, messages));
   const isUser = $derived(message.role === 'user');
@@ -130,6 +134,14 @@
         result={toolResult.result}
         error={toolResult.error}
       />
+    {/if}
+
+    {#if questionnaires.length > 0}
+      <div class="chat-message-questionnaires">
+        {#each questionnaires as questionnaire (questionnaire.id)}
+          <QuestionnaireCard part={questionnaire} disabled={streaming} />
+        {/each}
+      </div>
     {/if}
 
     {#if files.length > 0}
@@ -311,5 +323,12 @@
     height: 1.5rem;
     border-radius: 0.25rem;
     object-fit: cover;
+  }
+
+  .chat-message-questionnaires {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-bottom: 0.5rem;
   }
 </style>

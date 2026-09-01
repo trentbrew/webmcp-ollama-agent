@@ -5,7 +5,7 @@ export type PageType =
   | 'chat'
   | 'mcp'
   | 'traces'
-  | 'trellis'
+  | 'facts'
   | 'settings'
   | 'help'
   | 'components';

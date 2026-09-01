@@ -646,7 +646,7 @@
     margin: 0.5rem;
     margin-top: 0 !important;
     padding: 0.5rem;
-    box-shadow: 0 -8px 24px 0 color-mix(in oklab, currentColor 12%, black);
+    /* box-shadow: 0 -8px 24px -4px color-mix(in oklab, black 12%, transparent); */
     border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
     border-radius: 0.75rem;
     background: color-mix(in oklab, currentColor 3%, transparent);
@@ -670,6 +670,7 @@
     border-bottom: 1px solid color-mix(in oklab, currentColor 8%, transparent);
     color: oklch(var(--bc) / 0.62);
     font-size: 0.6875rem;
+    background: var(--muted);
   }
 
   :global(.chat-composer__context svg) {
@@ -934,7 +935,7 @@
 
   .chat-composer__textarea {
     width: 100%;
-    min-height: 2.5rem;
+    min-height: 5rem;
     max-height: 10rem;
     resize: none;
     border: none;
@@ -1004,7 +1005,7 @@
     padding: 0.25rem 0.5rem;
     border: 1px solid color-mix(in oklab, currentColor 16%, transparent);
     border-radius: 999px;
-    background: transparent;
+    background: var(--muted);
     color: inherit;
     font-size: 0.6875rem;
     cursor: pointer;

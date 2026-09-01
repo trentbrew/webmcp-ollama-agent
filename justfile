@@ -96,8 +96,20 @@ open-chrome:
     @echo "Opening chrome://extensions/ ..."
     @open -a "Google Chrome" "chrome://extensions/"
 
-# Quick test: rebuild and open Chrome
+# Quick manual test: rebuild and open Chrome (evidence ladder, rung 4)
 test: rebuild open-chrome
+
+# Unit + regression suite -- vitest (evidence ladder, rung 2)
+unit:
+    pnpm test
+
+# Live-tab browser smoke via Trellis extension relay (evidence ladder, rung 3)
+smoke:
+    @echo "Needs: trellis browser relay running + test-page/index.html in the active tab"
+    trellis browser verify browser-smoke
+
+# Static + unit -- what every wedge must pass. See docs/issues/README.md
+verify: check unit
 
 # Update dependencies
 update:

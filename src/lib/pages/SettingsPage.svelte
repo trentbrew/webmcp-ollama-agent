@@ -1,10 +1,26 @@
 <script lang="ts">
-  import { theme, toggleTheme } from '../stores/theme';
+  import { theme, setTheme } from '../stores/theme';
   import { layoutMode, setLayoutMode } from '../stores/layout';
-  import { Moon, Sun, Bell, Volume2, Palette, Shield, Layout, MessageCircle } from '../icons';
+  import { Moon, Sun, Palette, Layout, MessageCircle } from '../icons';
   import Icon from '../components/Icon.svelte';
-  import { chatSettings, resetInferenceOption, resetInferenceOptions, setInferenceOption, setKeepThinkingOpen } from '../chat/settings.svelte';
+  import ThemeController from '../components/ThemeController.svelte';
+  import { pageThemeState, setAutoMatch } from '../theme/pageTheme.svelte';
+  import {
+    chatSettings,
+    resetInferenceOption,
+    resetInferenceOptions,
+    setInferenceOption,
+    setKeepThinkingOpen,
+  } from '../chat/settings.svelte';
   import { DEFAULT_INFERENCE_OPTIONS, type InferenceOptions } from '../ai/config';
+  import { PageSection } from '../components/shell';
+  import {
+    Button,
+    Label,
+    Separator,
+    Slider,
+    Switch,
+  } from '../components/ui';
 
   let notifications = $state(true);
   let soundEnabled = $state(false);
@@ -26,104 +42,56 @@
   ];
 </script>
 
-<div class="space-y-6">
-  <!-- Header -->
-  <div class="flex items-center gap-3">
-    <Icon icon={Shield} size={32} class="text-primary" />
-    <div>
-      <h1 class="text-3xl font-bold">Settings</h1>
-      <p class="text-sm opacity-70">Customize your extension preferences</p>
-    </div>
-  </div>
+<div class="space-y-3">
+  <PageSection title="Appearance">
+    {#snippet actions()}
+      <ThemeController
+        autoMatch={pageThemeState.autoMatch}
+        onToggleAutoMatch={setAutoMatch}
+      />
+    {/snippet}
 
-  <!-- Theme Settings -->
-  <div class="card thread-card">
-    <div class="card-body">
-      <h2 class="card-title">
-        <Icon icon={Palette} size={24} />
-        Appearance
-      </h2>
-
-      <div class="form-control">
-        <label class="label cursor-pointer">
-          <span class="label-text">Theme</span>
-          <div class="flex items-center gap-3">
-            <Icon icon={$theme === 'light' ? Sun : Moon} size={20} />
-            <input
-              type="checkbox"
-              class="toggle toggle-primary"
-              checked={$theme === 'dark'}
-              onchange={toggleTheme}
-            />
-          </div>
-        </label>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="alert alert-info">
-        <Icon icon={Moon} size={20} />
-        <span>Current theme: <strong class="capitalize">{$theme}</strong></span>
+    <div class="shell-setting-row">
+      <Label>Dark mode</Label>
+      <div class="flex items-center gap-2">
+        <Icon icon={$theme === 'light' ? Sun : Moon} size={16} class="opacity-60" />
+        <Switch
+          checked={$theme === 'dark'}
+          onchange={(event) => setTheme((event.currentTarget as HTMLInputElement).checked ? 'dark' : 'light')}
+        />
       </div>
     </div>
-  </div>
+    <p class="shell-setting-hint mt-2">
+      Current theme: <span class="capitalize font-medium">{$theme}</span>. Use the palette control to pick from 32 themes or match the active page.
+    </p>
+  </PageSection>
 
-  <!-- Notifications Settings -->
-  <div class="card thread-card">
-    <div class="card-body">
-      <h2 class="card-title">
-        <Icon icon={Bell} size={24} />
-        Notifications
-      </h2>
-
-      <div class="form-control">
-        <label class="label cursor-pointer">
-          <span class="label-text">Enable notifications</span>
-          <input
-            type="checkbox"
-            class="toggle toggle-secondary"
-            bind:checked={notifications}
-          />
-        </label>
+  <PageSection title="Notifications">
+    <div class="space-y-3">
+      <div class="shell-setting-row">
+        <Label>Enable notifications</Label>
+        <Switch bind:checked={notifications} />
       </div>
-
-      <div class="form-control">
-        <label class="label cursor-pointer">
-          <span class="label-text">Sound effects</span>
-          <input
-            type="checkbox"
-            class="toggle toggle-accent"
-            bind:checked={soundEnabled}
-            disabled={!notifications}
-          />
-        </label>
+      <div class="shell-setting-row">
+        <Label>Sound effects</Label>
+        <Switch bind:checked={soundEnabled} disabled={!notifications} />
       </div>
     </div>
-  </div>
+  </PageSection>
 
-  <!-- General Settings -->
-  <div class="card thread-card">
-    <div class="card-body">
-      <h2 class="card-title">General</h2>
-
-      <div class="form-control">
-        <label class="label cursor-pointer">
-          <span class="label-text">Auto-save preferences</span>
-          <input
-            type="checkbox"
-            class="toggle toggle-success"
-            bind:checked={autoSave}
-          />
-        </label>
+  <PageSection title="General">
+    <div class="space-y-3">
+      <div class="shell-setting-row">
+        <Label>Auto-save preferences</Label>
+        <Switch bind:checked={autoSave} />
       </div>
-
-      <div class="divider"></div>
-
-      <div class="form-control w-full">
-        <label class="label" for="language-select">
-          <span class="label-text">Default language</span>
-        </label>
-        <select id="language-select" class="select select-bordered w-full">
+      <Separator />
+      <div class="space-y-1.5">
+        <Label for="language-select">Default language</Label>
+        <select
+          id="language-select"
+          class="flex h-8 w-full rounded border border-base-content/20 bg-base-100 px-2.5 text-xs"
+        >
           <option selected>English</option>
           <option>Spanish</option>
           <option>French</option>
@@ -131,97 +99,69 @@
         </select>
       </div>
     </div>
-  </div>
+  </PageSection>
 
-  <!-- Layout Settings -->
-  <div class="card thread-card">
-    <div class="card-body">
-      <h2 class="card-title">
-        <Icon icon={Layout} size={24} />
-        Layout Mode
-      </h2>
-
-      <div class="form-control">
-        <label class="label cursor-pointer">
-          <span class="label-text">Layout style</span>
-          <div class="join">
-            <button
-              class="btn join-item {$layoutMode === 'dock'
-                ? 'btn-primary'
-                : 'btn-ghost'}"
-              onclick={() => setLayoutMode('dock')}
-            >
-              Dock
-            </button>
-            <button
-              class="btn join-item {$layoutMode === 'panes'
-                ? 'btn-primary'
-                : 'btn-ghost'}"
-              onclick={() => setLayoutMode('panes')}
-            >
-              Panes
-            </button>
-          </div>
-        </label>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="alert alert-info">
-        <Icon icon={Layout} size={20} />
-        <span
-          >Current layout: <strong class="capitalize">{$layoutMode}</strong
-          ></span
+  <PageSection title="Layout mode">
+    <div class="shell-setting-row">
+      <Label>Layout style</Label>
+      <div class="inline-flex rounded border border-base-content/15 p-0.5">
+        <Button
+          variant={$layoutMode === 'dock' ? 'default' : 'ghost'}
+          size="sm"
+          onclick={() => setLayoutMode('dock')}
         >
+          Dock
+        </Button>
+        <Button
+          variant={$layoutMode === 'panes' ? 'default' : 'ghost'}
+          size="sm"
+          onclick={() => setLayoutMode('panes')}
+        >
+          Panes
+        </Button>
       </div>
     </div>
-  </div>
+    <p class="shell-setting-hint mt-2">
+      Current layout: <span class="capitalize font-medium">{$layoutMode}</span>
+    </p>
+  </PageSection>
 
-  <!-- Inference Settings -->
-  <div class="card thread-card">
-    <div class="card-body">
-      <h2 class="card-title">
-        <Icon icon={MessageCircle} size={24} />
-        Inference
-      </h2>
-      <p class="text-sm opacity-70 -mt-2">Sampling parameters sent with every Ollama request.</p>
-
-      <div class="form-control">
-        <label class="label cursor-pointer">
-          <span class="label-text">Keep reasoning expanded after reply</span>
-          <input
-            type="checkbox"
-            class="toggle toggle-primary"
-            checked={chatSettings.keepThinkingOpen}
-            onchange={(event) => setKeepThinkingOpen((event.currentTarget as HTMLInputElement).checked)}
-          />
-        </label>
-        <span class="label-text-alt opacity-60 px-1">When off, the “Thinking” block collapses once the response finishes.</span>
+  <PageSection title="Inference" description="Sampling parameters sent with every Ollama request.">
+    <div class="space-y-3">
+      <div class="shell-setting-row">
+        <div>
+          <Label>Keep reasoning expanded</Label>
+          <p class="shell-setting-hint">Collapse the Thinking block when the response finishes.</p>
+        </div>
+        <Switch
+          checked={chatSettings.keepThinkingOpen}
+          onchange={(event) => setKeepThinkingOpen((event.currentTarget as HTMLInputElement).checked)}
+        />
       </div>
 
-      <div class="divider my-1"></div>
+      <Separator />
 
       {#each inferenceFields as field (field.key)}
         {@const isDefault = chatSettings.inference[field.key] === DEFAULT_INFERENCE_OPTIONS[field.key]}
-        <div class="form-control w-full">
-          <label class="label" for={`inference-${field.key}`}>
-            <span class="label-text">{field.label}</span>
-            <span class="label-text-alt tabular-nums flex items-center gap-1">
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <Label for={`inference-${field.key}`}>{field.label}</Label>
+            <span class="text-xs tabular-nums text-base-content/60 flex items-center gap-1">
               {chatSettings.inference[field.key]}
               {#if !isDefault}
                 <button
                   type="button"
-                  class="link link-hover opacity-50 hover:opacity-100"
+                  class="text-primary hover:underline"
                   title={`Reset to default (${DEFAULT_INFERENCE_OPTIONS[field.key]})`}
                   onclick={() => resetInferenceOption(field.key)}
-                >reset</button>
+                >
+                  reset
+                </button>
               {/if}
             </span>
-          </label>
-          <input
+          </div>
+          <Slider
             id={`inference-${field.key}`}
-            type="range"
-            class="range range-primary range-sm thread-range"
             min={field.min}
             max={field.max}
             step={field.step}
@@ -230,25 +170,25 @@
             oninput={(event) => setInferenceOption(field.key, Number((event.currentTarget as HTMLInputElement).value))}
             ondblclick={() => resetInferenceOption(field.key)}
           />
-          <span class="label-text-alt opacity-60">{field.hint} Double-click the slider to reset (default {DEFAULT_INFERENCE_OPTIONS[field.key]}).</span>
+          <p class="shell-setting-hint">
+            {field.hint} Double-click to reset (default {DEFAULT_INFERENCE_OPTIONS[field.key]}).
+          </p>
         </div>
       {/each}
 
-      <div class="card-actions justify-end mt-2">
-        <button class="btn btn-sm btn-outline" onclick={() => resetInferenceOptions()}>Reset to defaults</button>
+      <div class="flex justify-end pt-1">
+        <Button variant="outline" size="sm" onclick={() => resetInferenceOptions()}>
+          Reset to defaults
+        </Button>
       </div>
     </div>
-  </div>
+  </PageSection>
 
-  <!-- Actions -->
-  <div class="card thread-card">
-    <div class="card-body">
-      <h2 class="card-title">Data Management</h2>
-      <div class="flex flex-wrap gap-2">
-        <button class="btn btn-outline btn-primary">Export Data</button>
-        <button class="btn btn-outline btn-secondary">Import Settings</button>
-        <button class="btn btn-outline btn-error">Clear Cache</button>
-      </div>
+  <PageSection title="Data management">
+    <div class="flex flex-wrap gap-2">
+      <Button variant="outline" size="sm">Export data</Button>
+      <Button variant="outline" size="sm">Import settings</Button>
+      <Button variant="destructive" size="sm">Clear cache</Button>
     </div>
-  </div>
+  </PageSection>
 </div>

@@ -114,6 +114,8 @@ export function getChatStatusLabel(
     return text ? 'Working…' : 'Thinking…';
   }
 
+  if (status === 'awaiting-input') return 'Waiting for your answer…';
+
   return 'Working…';
 }
 

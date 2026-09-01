@@ -11,6 +11,19 @@
 // implementation so the page's own behavior (and any native browser agent) is
 // unaffected.
 
+// Idempotency guard. onStartup (and install-time programmatic injection) can run
+// this bundle in a tab that also auto-ran it via manifest content_scripts,
+// double-patching console and re-wrapping modelContext. Bail on a second run.
+const injectionFlag = '__webmcpMainLoaded';
+if ((window as unknown as Record<string, boolean>)[injectionFlag]) {
+  // Already installed in this realm -- do nothing.
+} else {
+  (window as unknown as Record<string, boolean>)[injectionFlag] = true;
+  install();
+}
+
+function install() {
+
 type WebMcpExecute = (input: unknown, options: { signal: AbortSignal }) => unknown;
 
 type WebMcpTool = {
@@ -306,3 +319,5 @@ function toSerializable(value: unknown): unknown {
     }
   }
 }
+
+} // end install()

@@ -84,7 +84,26 @@ npm run format
 
 ### Testing Your Changes
 
-1. Build the extension: `npm run build`
+Substantive changes follow the empirical wedge practice in
+[`docs/issues/README.md`](docs/issues/README.md): a spec with executable
+acceptance criteria, a regression test observed red before the fix, and a journal
+recording what was actually run.
+
+Climb the evidence ladder as far as the change's risk demands:
+
+| Rung | Command |
+| --- | --- |
+| Static | `just check` |
+| Unit | `just unit` |
+| Live tab | `just smoke` |
+| Manual | `just test`, then reload at `chrome://extensions/` |
+
+`just verify` runs the first two together.
+
+Manual verification is legitimate, but only when written into the issue journal
+with what was clicked and what was observed:
+
+1. Build the extension: `pnpm build`
 2. Load the `dist/` folder as an unpacked extension in Chrome
 3. Test all affected functionality
 4. Verify no console errors

@@ -68,7 +68,30 @@ function connect() {
   port.onDisconnect.addListener(() => {
     port = undefined;
     mcpState.connected = false;
+    // The MV3 service worker spins down when idle, taking the port -- and the
+    // background's in-memory panelSubscriptions map -- with it. Without an active
+    // subscription the background pushes tool-state updates to nobody, so newly
+    // registered page tools never reach the panel until a tab event re-subscribes
+    // (which is why reloading the page "fixes" it). Reconnect and re-subscribe so
+    // pushed updates keep flowing across SW restarts without a manual reload.
+    if (initialized) scheduleResubscribe();
   });
+}
+
+let resubscribeTimer: ReturnType<typeof setTimeout> | undefined;
+
+function scheduleResubscribe() {
+  if (resubscribeTimer) return;
+  resubscribeTimer = setTimeout(() => {
+    resubscribeTimer = undefined;
+    if (mcpState.tabId != null) {
+      // Re-open the port and re-register this tab's subscription with the
+      // freshly-woken background, then pull the current state/traces/console.
+      send({ type: 'subscribe', tabId: mcpState.tabId });
+    } else {
+      void subscribeToActiveTab();
+    }
+  }, 300);
 }
 
 function send(message: PanelToBackground) {

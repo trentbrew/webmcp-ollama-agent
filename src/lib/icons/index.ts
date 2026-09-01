@@ -50,6 +50,8 @@ export {
   Terminal,
   Wrench,
   Hash,
+  Sparkles,
+  Loader,
 } from '@lucide/svelte';
 
 // Re-export types

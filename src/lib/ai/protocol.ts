@@ -33,7 +33,21 @@ export type ChatToolResultPart = {
   error?: string;
 };
 
-export type ChatMessagePart = ChatTextPart | ChatReasoningPart | ChatFilePart | ChatToolCallPart | ChatToolResultPart;
+export type ChatQuestionnairePart = {
+  type: 'questionnaire';
+  id: string;
+  items: import('./questionnaire').QuestionnaireItem[];
+  answers?: import('./questionnaire').QuestionnaireAnswers;
+  status: 'pending' | 'answered' | 'skipped';
+};
+
+export type ChatMessagePart =
+  | ChatTextPart
+  | ChatReasoningPart
+  | ChatFilePart
+  | ChatToolCallPart
+  | ChatToolResultPart
+  | ChatQuestionnairePart;
 
 export type ChatMessageMetadata = {
   createdAt?: number;
@@ -49,7 +63,7 @@ export type UIMessage = {
   metadata?: ChatMessageMetadata;
 };
 
-export type ChatStatus = 'submitted' | 'streaming' | 'ready' | 'error';
+export type ChatStatus = 'submitted' | 'streaming' | 'awaiting-input' | 'ready' | 'error';
 
 export type OllamaToolCall = {
   function: {

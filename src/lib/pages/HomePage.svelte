@@ -1,138 +1,53 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { navigateTo } from '../stores/navigation';
+  import { PageSection } from '../components/shell';
+  import { Button } from '../components/ui';
   import Footer from '../components/Footer.svelte';
 
   let count = $state(0);
-
-  function increment() {
-    count++;
-  }
-
-  onMount(() => {
-    console.log('HomePage mounted');
-  });
 </script>
 
-<div class="space-y-6">
-  <!-- Hero Card -->
-  <div
-    class="card bg-gradient-to-br from-primary to-secondary text-primary-content shadow-xl"
-  >
-    <div class="card-body">
-      <h2 class="card-title text-3xl">My Chrome Extension</h2>
-      <p class="text-lg opacity-90">
-        Your AI-powered Chrome extension built with Svelte 5
-      </p>
-      <div class="card-actions justify-end mt-4">
-        <button class="btn btn-ghost">Get Started</button>
-      </div>
+<div class="space-y-3">
+  <PageSection title="WebMCP">
+    <p class="text-sm text-base-content/70 leading-relaxed">
+      Your AI-powered Chrome extension side panel. Chat with local models, invoke page tools via WebMCP, and inspect traces.
+    </p>
+    <div class="flex gap-2 mt-3">
+      <Button size="sm" onclick={() => navigateTo('chat')}>Open chat</Button>
+      <Button variant="outline" size="sm" onclick={() => navigateTo('mcp')}>View tools</Button>
     </div>
-  </div>
+  </PageSection>
 
-  <!-- Stats -->
-  <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
-    <div class="stat">
-      <div class="stat-figure text-primary">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          class="inline-block w-8 h-8 stroke-current"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-          ></path>
-        </svg>
+  <PageSection title="Quick stats">
+    <div class="grid grid-cols-2 gap-2">
+      <div class="rounded border border-base-content/10 p-3">
+        <p class="text-[0.65rem] uppercase tracking-wide text-base-content/50">Clicks</p>
+        <p class="text-lg font-semibold text-primary tabular-nums">{count}</p>
       </div>
-      <div class="stat-title">Total Clicks</div>
-      <div class="stat-value text-primary">{count}</div>
-      <div class="stat-desc">Keep clicking!</div>
+      <div class="rounded border border-base-content/10 p-3">
+        <p class="text-[0.65rem] uppercase tracking-wide text-base-content/50">Status</p>
+        <p class="text-lg font-semibold">Active</p>
+      </div>
     </div>
+    <div class="flex gap-2 mt-3">
+      <Button size="sm" onclick={() => count++}>Increment</Button>
+      <Button variant="outline" size="sm" onclick={() => (count = 0)}>Reset</Button>
+    </div>
+  </PageSection>
 
-    <div class="stat">
-      <div class="stat-figure text-secondary">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          class="inline-block w-8 h-8 stroke-current"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M13 10V3L4 14h7v7l9-11h-7z"
-          ></path>
-        </svg>
-      </div>
-      <div class="stat-title">Status</div>
-      <div class="stat-value text-secondary">Active</div>
-      <div class="stat-desc">Extension running</div>
+  <PageSection title="Stack">
+    <ul class="space-y-1.5 text-sm text-base-content/70">
+      <li>Svelte 5 + Vite + TypeScript</li>
+      <li>Tailwind + DaisyUI theme tokens</li>
+      <li>Shell UI primitives (shadcn-inspired)</li>
+      <li>Lucide icons, WebMCP, Ollama</li>
+    </ul>
+    <div class="mt-3">
+      <Button variant="outline" size="sm" onclick={() => navigateTo('components')}>
+        View components
+      </Button>
     </div>
-  </div>
-
-  <!-- Interactive Card -->
-  <div class="card thread-card">
-    <div class="card-body">
-      <h2 class="card-title">Counter Demo</h2>
-      <p>Test Svelte 5 reactivity with this simple counter.</p>
-      <div class="flex items-center gap-4 mt-4">
-        <button class="btn btn-primary" onclick={increment}
-          >{count + `${count == 1 ? ' click' : ' clicks'}`}</button
-        >
-        <button class="btn btn-outline btn-error" onclick={() => (count = 0)}>
-          Reset
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Feature Cards Grid -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="card thread-card">
-      <div class="card-body">
-        <h3 class="card-title text-lg">Modern Stack</h3>
-        <p class="text-sm">
-          Built with Svelte 5, Vite, TypeScript, and TailwindCSS
-        </p>
-      </div>
-    </div>
-
-    <div class="card thread-card">
-      <div class="card-body">
-        <h3 class="card-title text-lg">DaisyUI Components</h3>
-        <p class="text-sm">
-          Beautiful, accessible UI components out of the box
-        </p>
-        <div class="card-actions justify-end">
-          <button
-            class="btn btn-sm btn-primary"
-            onclick={() => navigateTo('components')}
-          >
-            View Demo →
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card thread-card">
-      <div class="card-body">
-        <h3 class="card-title text-lg">Lucide Icons</h3>
-        <p class="text-sm">High-quality SVG icons that work with Chrome CSP</p>
-      </div>
-    </div>
-
-    <div class="card thread-card">
-      <div class="card-body">
-        <h3 class="card-title text-lg">Type Safety</h3>
-        <p class="text-sm">Full TypeScript support for better DX</p>
-      </div>
-    </div>
-  </div>
+  </PageSection>
 
   <Footer />
 </div>

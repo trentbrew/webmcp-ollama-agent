@@ -242,7 +242,7 @@ export function isChatBusy(tabId?: number): boolean {
   if (id == null) return false;
   const session = chatSessionState.byTabId[id];
   if (!session) return false;
-  return session.status === 'submitted' || session.status === 'streaming';
+  return session.status === 'submitted' || session.status === 'streaming' || session.status === 'awaiting-input';
 }
 
 export async function listResumableSessions(): Promise<ResumableSession[]> {

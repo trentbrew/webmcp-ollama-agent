@@ -7,6 +7,7 @@ import type {
   OllamaTool,
   OllamaToolCall,
 } from '../lib/ai/protocol';
+import { injectExistingTabs } from './inject';
 import { initWebMcp } from './webmcp';
 
 const CORS_RULE_ID = 1;
@@ -20,10 +21,14 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => 
 
 chrome.runtime.onInstalled.addListener(() => {
   void ensureCorsBypass(DEFAULT_OLLAMA_BASE_URL);
+  // Manifest content_scripts don't run in tabs opened before install/update, so
+  // inject them now -- otherwise open tabs show no tools until a manual reload.
+  void injectExistingTabs();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   void ensureCorsBypass(DEFAULT_OLLAMA_BASE_URL);
+  void injectExistingTabs();
 });
 
 void ensureCorsBypass(DEFAULT_OLLAMA_BASE_URL);

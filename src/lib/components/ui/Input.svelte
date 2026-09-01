@@ -1,18 +1,10 @@
 <script lang="ts">
+  import { cn } from '../../cn';
+
   interface Props {
     type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search';
     value?: string | number;
     placeholder?: string;
-    size?: 'xs' | 'sm' | 'md' | 'lg';
-    bordered?: boolean;
-    ghost?: boolean;
-    primary?: boolean;
-    secondary?: boolean;
-    accent?: boolean;
-    info?: boolean;
-    success?: boolean;
-    warning?: boolean;
-    error?: boolean;
     disabled?: boolean;
     class?: string;
     id?: string;
@@ -20,21 +12,11 @@
     required?: boolean;
     oninput?: (e: Event) => void;
   }
-  
+
   let {
     type = 'text',
     value = $bindable(''),
     placeholder = '',
-    size = 'md',
-    bordered = true,
-    ghost = false,
-    primary = false,
-    secondary = false,
-    accent = false,
-    info = false,
-    success = false,
-    warning = false,
-    error = false,
     disabled = false,
     class: className = '',
     id,
@@ -43,21 +25,6 @@
     oninput,
     ...rest
   }: Props = $props();
-  
-  const classes = $derived([
-    'input',
-    bordered && 'input-bordered',
-    ghost && 'input-ghost',
-    primary && 'input-primary',
-    secondary && 'input-secondary',
-    accent && 'input-accent',
-    info && 'input-info',
-    success && 'input-success',
-    warning && 'input-warning',
-    error && 'input-error',
-    size !== 'md' && `input-${size}`,
-    className
-  ].filter(Boolean).join(' '));
 </script>
 
 <input
@@ -69,6 +36,12 @@
   {name}
   {required}
   {oninput}
-  class={classes}
+  class={cn(
+    'flex h-8 w-full rounded border border-base-content/20 bg-base-100 px-2.5 text-xs',
+    'placeholder:text-base-content/40',
+    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+    'disabled:cursor-not-allowed disabled:opacity-50',
+    className,
+  )}
   {...rest}
 />

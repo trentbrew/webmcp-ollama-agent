@@ -179,3 +179,72 @@ body {
   border: 1px solid color-mix(in oklab, currentColor 14%, transparent);
   text-align: left;
 }
+
+/* ── Page shell (non-chat surfaces) ─────────────────────────────────────── */
+
+.page-shell {
+  --shell-header-height: 2.5rem;
+  font-size: 0.8125rem;
+}
+
+.page-shell .shell-card {
+  border: 1px solid oklch(var(--bc) / 0.14);
+  background: oklch(var(--b1));
+  border-radius: 0.25rem;
+  box-shadow: none;
+}
+
+.page-shell .shell-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.25rem;
+}
+
+.page-shell .shell-setting-hint {
+  font-size: 0.7rem;
+  color: oklch(var(--bc) / 0.55);
+  line-height: 1.4;
+}
+
+.page-shell .shell-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 999px;
+  background: oklch(var(--p));
+  border: 2px solid oklch(var(--b1));
+  cursor: ew-resize;
+}
+
+.page-shell .shell-slider::-moz-range-thumb {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 999px;
+  background: oklch(var(--p));
+  border: 2px solid oklch(var(--b1));
+  cursor: ew-resize;
+}
+
+.page-shell .shell-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.page-shell .shell-table th,
+.page-shell .shell-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid oklch(var(--bc) / 0.1);
+  text-align: left;
+}
+
+.page-shell .shell-table th {
+  font-weight: 600;
+  color: oklch(var(--bc) / 0.7);
+}
+
+.page-shell .shell-table tbody tr:hover {
+  background: oklch(var(--bc) / 0.04);
+}

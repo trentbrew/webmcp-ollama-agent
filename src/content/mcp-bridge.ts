@@ -16,6 +16,18 @@ import {
 // feeds) is lost forever after the first SW restart, while the toolbar badge keeps
 // showing a stale, retained count. Reconnect on disconnect and re-request the
 // page's tools so the background always resyncs.
+// Idempotency guard -- mirror mcp-main. A second injection (onStartup restore that
+// also auto-ran the manifest content script) would open a duplicate runtime port.
+const bridgeFlag = '__webmcpBridgeLoaded';
+if ((window as unknown as Record<string, boolean>)[bridgeFlag]) {
+  // Already bridged in this isolated realm -- do nothing.
+} else {
+  (window as unknown as Record<string, boolean>)[bridgeFlag] = true;
+  install();
+}
+
+function install() {
+
 let port: chrome.runtime.Port | undefined;
 
 function connect() {
@@ -90,3 +102,5 @@ connect();
 // Ask the page script for its current state in case it broadcast "ready" before this
 // isolated-world script finished connecting the port.
 window.postMessage({ source: WEBMCP_BRIDGE_SOURCE, type: 'list-tools', requestId: 'initial' }, '*');
+
+} // end install()

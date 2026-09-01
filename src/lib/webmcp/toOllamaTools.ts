@@ -7,6 +7,7 @@ import type { WebMcpToolSummary } from './protocol';
 export const BUILTIN_TOOL_NAMES = {
   trace: 'webmcp_trace',
   console: 'webmcp_console',
+  askUser: 'ask_user',
 } as const;
 
 const BUILTIN_TOOLS: OllamaTool[] = [
@@ -37,10 +38,66 @@ const BUILTIN_TOOLS: OllamaTool[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: BUILTIN_TOOL_NAMES.askUser,
+      description:
+        'Present a structured multi-step questionnaire to the user and wait for their answers. Use when you need specific choices or values instead of guessing from free text. Returns a JSON object keyed by item name.',
+      parameters: {
+        type: 'object',
+        required: ['items'],
+        properties: {
+          items: {
+            type: 'array',
+            description: 'Ordered list of questions to present.',
+            items: {
+              type: 'object',
+              required: ['name', 'prompt'],
+              properties: {
+                name: { type: 'string', description: 'Answer key returned in the result object.' },
+                prompt: { type: 'string', description: 'Question title shown to the user.' },
+                description: { type: 'string', description: 'Optional helper text under the prompt.' },
+                required: { type: 'boolean', description: 'Whether the user must answer (default true).' },
+                multiple: { type: 'boolean', description: 'Allow selecting more than one choice.' },
+                choices: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['value', 'label'],
+                    properties: {
+                      value: { type: 'string' },
+                      label: { type: 'string' },
+                      description: { type: 'string' },
+                      shortcut: { type: 'string', description: 'Keyboard shortcut hint (e.g. A, B, 1).' },
+                    },
+                  },
+                },
+                input: {
+                  type: 'object',
+                  required: ['label'],
+                  properties: {
+                    label: { type: 'string' },
+                    placeholder: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 ];
 
 export function isBuiltinTool(name: string): boolean {
-  return name === BUILTIN_TOOL_NAMES.trace || name === BUILTIN_TOOL_NAMES.console || isTrellisTool(name) || isBrowserTool(name);
+  return (
+    name === BUILTIN_TOOL_NAMES.trace ||
+    name === BUILTIN_TOOL_NAMES.console ||
+    name === BUILTIN_TOOL_NAMES.askUser ||
+    isTrellisTool(name) ||
+    isBrowserTool(name)
+  );
 }
 
 export function buildAgentToolSummaries(pageTools: WebMcpToolSummary[]): WebMcpToolSummary[] {

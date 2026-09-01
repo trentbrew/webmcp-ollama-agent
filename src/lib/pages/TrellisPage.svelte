@@ -1,20 +1,46 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Layers } from '../icons';
   import { getTrellisKernel, trellisState } from '../trellis/kernel.svelte';
-  import type { KernelOp } from 'trellis/browser-core';
+  import type { EntityRecord } from 'trellis/browser-core';
+  import { PageSection } from '../components/shell';
+  import { Button } from '../components/ui';
 
-  let ops = $state<KernelOp[]>([]);
+  type FactRow = { entity: string; type: string; attribute: string; value: string };
+  type RelRow = { source: string; attribute: string; target: string };
+
+  let facts = $state<FactRow[]>([]);
+  let relationships = $state<RelRow[]>([]);
   let creating = $state(false);
 
   onMount(() => {
     void bootAndLoad();
   });
 
+  function refresh(entities: EntityRecord[]) {
+    const nextFacts: FactRow[] = [];
+    const nextRels: RelRow[] = [];
+    for (const entity of entities) {
+      for (const fact of entity.facts) {
+        if (fact.a === 'type') continue;
+        nextFacts.push({
+          entity: entity.id,
+          type: entity.type,
+          attribute: fact.a,
+          value: String(fact.v),
+        });
+      }
+      for (const link of entity.links) {
+        nextRels.push({ source: link.e1, attribute: link.a, target: link.e2 });
+      }
+    }
+    facts = nextFacts;
+    relationships = nextRels;
+  }
+
   async function bootAndLoad() {
     try {
       const kernel = await getTrellisKernel();
-      ops = kernel.readAllOps();
+      refresh(kernel.listEntities());
     } catch {
       // trellisState.error already set by getTrellisKernel().
     }
@@ -28,83 +54,86 @@
         note: `created at ${new Date().toLocaleTimeString()}`,
       });
       trellisState.opCount = kernel.getBackend().getOpCount();
-      ops = kernel.readAllOps();
+      refresh(kernel.listEntities());
     } finally {
       creating = false;
     }
   }
 </script>
 
-<div class="space-y-6">
-  <div class="flex items-center gap-3">
-    <Layers size={32} class="text-primary" />
-    <div>
-      <h1 class="text-3xl font-bold">Trellis (embedded)</h1>
-      <p class="text-sm opacity-70">Local-first graph kernel running in this side panel — diagnostic view.</p>
-    </div>
-  </div>
-
-  <div class="card thread-card">
-    <div class="card-body">
-      <h2 class="card-title">Status</h2>
-
-      {#if trellisState.status === 'booting'}
-        <div class="alert alert-info">
-          <span>Booting kernel…</span>
-        </div>
-      {:else if trellisState.status === 'error'}
-        <div class="alert alert-error">
-          <span>{trellisState.error}</span>
-        </div>
-      {:else if trellisState.status === 'ready'}
-        <div class="alert alert-success">
-          <span>
-            Ready — {trellisState.opCount} op{trellisState.opCount === 1 ? '' : 's'} persisted
-            ({trellisState.opsReplayed} replayed on boot).
-          </span>
-        </div>
-      {/if}
-
-      <p class="text-xs opacity-60">
-        Storage is a shim (OPFS via a monkeypatched <code>SqlJsKernelBackend</code>) — see the build notes for why
-        this is a stopgap, not upstream trellis-node behavior.
+<div class="space-y-3 h-full flex flex-col min-h-0">
+  {#if trellisState.status === 'booting'}
+    <p class="text-xs text-base-content/60 px-1">Booting kernel…</p>
+  {:else if trellisState.status === 'error'}
+    <p class="text-xs text-error px-1">{trellisState.error}</p>
+  {:else if trellisState.status === 'ready'}
+    <div class="flex items-center justify-between gap-2 flex-wrap px-1">
+      <p class="text-xs text-base-content/60">
+        {trellisState.opCount} op{trellisState.opCount === 1 ? '' : 's'} persisted
+        ({trellisState.opsReplayed} replayed on boot).
       </p>
-
-      <div class="card-actions justify-end mt-2">
-        <button class="btn btn-primary btn-sm" disabled={creating || trellisState.status !== 'ready'} onclick={() => void createTestEntity()}>
-          {creating ? 'Creating…' : 'Create test entity'}
-        </button>
+      <div class="flex gap-1.5">
+        <Button variant="ghost" size="sm" onclick={() => void bootAndLoad()}>Refresh</Button>
+        <Button size="sm" disabled={creating} onclick={() => void createTestEntity()}>
+          {creating ? 'Creating…' : 'Add test fact'}
+        </Button>
       </div>
     </div>
-  </div>
+  {/if}
 
-  <div class="card thread-card">
-    <div class="card-body">
-      <h2 class="card-title">Op log ({ops.length})</h2>
-      {#if ops.length === 0}
-        <p class="text-sm opacity-60">No ops yet.</p>
-      {:else}
-        <div class="overflow-x-auto">
-          <table class="table table-xs">
-            <thead>
+  <PageSection title="Facts ({facts.length})" class="min-h-0 flex-1">
+    {#if facts.length === 0}
+      <p class="text-xs text-base-content/60">No facts yet.</p>
+    {:else}
+      <div class="overflow-x-auto -mx-1">
+        <table class="shell-table">
+          <thead>
+            <tr>
+              <th>Entity</th>
+              <th>Type</th>
+              <th>Attr</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each facts as fact, i (`${fact.entity}:${fact.attribute}:${i}`)}
               <tr>
-                <th>Kind</th>
-                <th>Timestamp</th>
-                <th>Hash</th>
+                <td class="font-mono text-[0.65rem] opacity-70 max-w-[4rem] truncate">{fact.entity}</td>
+                <td>{fact.type}</td>
+                <td>{fact.attribute}</td>
+                <td class="break-all">{fact.value}</td>
               </tr>
-            </thead>
-            <tbody>
-              {#each [...ops].reverse().slice(0, 20) as op (op.hash)}
-                <tr>
-                  <td>{op.kind}</td>
-                  <td class="tabular-nums">{new Date(op.timestamp).toLocaleTimeString()}</td>
-                  <td class="font-mono text-xs opacity-60">{op.hash.slice(0, 16)}…</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      {/if}
-    </div>
-  </div>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+  </PageSection>
+
+  <PageSection title="Relationships ({relationships.length})">
+    {#if relationships.length === 0}
+      <p class="text-xs text-base-content/60">No relationships yet.</p>
+    {:else}
+      <div class="overflow-x-auto -mx-1">
+        <table class="shell-table">
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th>Rel</th>
+              <th>Target</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each relationships as rel, i (`${rel.source}:${rel.attribute}:${rel.target}:${i}`)}
+              <tr>
+                <td class="font-mono text-[0.65rem] opacity-70 max-w-[4rem] truncate">{rel.source}</td>
+                <td>{rel.attribute}</td>
+                <td class="font-mono text-[0.65rem] opacity-70 max-w-[4rem] truncate">{rel.target}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+  </PageSection>
 </div>

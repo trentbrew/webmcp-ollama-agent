@@ -5,8 +5,9 @@ import {
   getMessageText,
   type ChatMessageMetadata,
 } from './ai/messages';
+import { parseAskUserArgs, type QuestionnaireAnswers } from './ai/questionnaire';
 import { streamOllamaChat } from './ai/ollama';
-import type { ChatFilePart, ChatStatus, OllamaChatMessage, OllamaToolCall, UIMessage } from './ai/protocol';
+import type { ChatFilePart, ChatQuestionnairePart, ChatStatus, OllamaChatMessage, OllamaToolCall, UIMessage } from './ai/protocol';
 import { chatSettings } from './chat/settings.svelte';
 import { playResponseComplete } from './chat/sfx';
 import { expandMentions } from './chat/mentions';
@@ -53,6 +54,15 @@ const EMPTY_CHAT_VIEW = {
   title: null,
   updatedAt: 0,
 };
+
+type PendingQuestionnaire = {
+  sessionKey: number;
+  assistantId: string;
+  resolve: (answers: QuestionnaireAnswers) => void;
+  reject: (reason: Error) => void;
+};
+
+const pendingQuestionnaires = new Map<string, PendingQuestionnaire>();
 
 /** Returns the currently displayed chat session (active tab or detached archive). */
 export function getChat() {
@@ -206,7 +216,14 @@ async function runTurn(
 
   for (const call of toolCalls) {
     const args = call.function.arguments ?? {};
-    const result = await runAgentTool(call.function.name, args);
+    let result: { ok: boolean; result?: unknown; error?: string };
+
+    if (call.function.name === BUILTIN_TOOL_NAMES.askUser) {
+      result = await runAskUserTool(session, assistantId, args, requestAbort.signal);
+    } else {
+      result = await runAgentTool(call.function.name, args);
+    }
+
     session.messages.push({
       id: crypto.randomUUID(),
       role: 'tool',
@@ -234,6 +251,134 @@ async function runTurn(
   session.updatedAt = Date.now();
   persistSession(session);
   await runTurn(session, nextAssistant.id, requestAbort, iteration + 1);
+}
+
+async function runAskUserTool(
+  session: TabChatSession | DetachedChatSession,
+  assistantId: string,
+  args: unknown,
+  signal: AbortSignal,
+): Promise<{ ok: boolean; result?: unknown; error?: string }> {
+  const parsed = parseAskUserArgs(args);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  const questionnaireId = crypto.randomUUID();
+  const part: ChatQuestionnairePart = {
+    type: 'questionnaire',
+    id: questionnaireId,
+    items: parsed.items,
+    status: 'pending',
+  };
+  attachQuestionnairePart(session, assistantId, part);
+  session.status = 'awaiting-input';
+  session.updatedAt = Date.now();
+  persistSession(session);
+
+  try {
+    const answers = await waitForQuestionnaireAnswers(
+      questionnaireId,
+      sessionKey(session),
+      assistantId,
+      signal,
+    );
+    markQuestionnaireAnswered(session, assistantId, questionnaireId, answers, 'answered');
+    session.status = 'streaming';
+    session.updatedAt = Date.now();
+    persistSession(session);
+    return { ok: true, result: answers };
+  } catch (error) {
+    session.status = signal.aborted ? 'ready' : 'error';
+    if (!signal.aborted) {
+      session.error = error instanceof Error ? error.message : String(error);
+    }
+    session.updatedAt = Date.now();
+    persistSession(session);
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function submitQuestionnaireAnswers(
+  questionnaireId: string,
+  answers: QuestionnaireAnswers,
+  status: 'answered' | 'skipped' = 'answered',
+): Promise<boolean> {
+  const pending = pendingQuestionnaires.get(questionnaireId);
+  if (!pending) return false;
+
+  const session = getDisplayedChatSession();
+  if (!session || sessionKey(session) !== pending.sessionKey) return false;
+
+  markQuestionnaireAnswered(session, pending.assistantId, questionnaireId, answers, status);
+  session.updatedAt = Date.now();
+  persistSession(session);
+
+  pendingQuestionnaires.delete(questionnaireId);
+  pending.resolve(answers);
+  return true;
+}
+
+function waitForQuestionnaireAnswers(
+  questionnaireId: string,
+  key: number,
+  assistantId: string,
+  signal: AbortSignal,
+): Promise<QuestionnaireAnswers> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new Error('Questionnaire cancelled.'));
+      return;
+    }
+
+    const onAbort = () => {
+      pendingQuestionnaires.delete(questionnaireId);
+      reject(new Error('Questionnaire cancelled.'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+
+    pendingQuestionnaires.set(questionnaireId, {
+      sessionKey: key,
+      assistantId,
+      resolve: (answers) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(answers);
+      },
+      reject: (error) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    });
+  });
+}
+
+function attachQuestionnairePart(
+  session: TabChatSession | DetachedChatSession,
+  assistantId: string,
+  part: ChatQuestionnairePart,
+) {
+  const index = session.messages.findIndex((entry) => entry.id === assistantId);
+  if (index < 0) return;
+  const message = session.messages[index];
+  session.messages[index] = { ...message, parts: [...message.parts, part] };
+}
+
+function markQuestionnaireAnswered(
+  session: TabChatSession | DetachedChatSession,
+  assistantId: string,
+  questionnaireId: string,
+  answers: QuestionnaireAnswers,
+  status: 'answered' | 'skipped',
+) {
+  const index = session.messages.findIndex((entry) => entry.id === assistantId);
+  if (index < 0) return;
+  const message = session.messages[index];
+  session.messages[index] = {
+    ...message,
+    parts: message.parts.map((part) =>
+      part.type === 'questionnaire' && part.id === questionnaireId
+        ? { ...part, answers, status }
+        : part,
+    ),
+  };
 }
 
 async function runAgentTool(name: string, args: unknown): Promise<{ ok: boolean; result?: unknown; error?: string }> {
