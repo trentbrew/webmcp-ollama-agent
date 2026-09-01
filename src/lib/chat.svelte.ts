@@ -1,6 +1,5 @@
 import { CHAT_SYSTEM_PROMPT, MAX_TOOL_ITERATIONS } from './ai/config';
 import {
-  backfillMessageTimestamps,
   createMessageMetadata,
   getMessageFiles,
   getMessageText,
@@ -8,10 +7,24 @@ import {
 } from './ai/messages';
 import { streamOllamaChat } from './ai/ollama';
 import type { ChatFilePart, ChatStatus, OllamaChatMessage, OllamaToolCall, UIMessage } from './ai/protocol';
-import { clearPersistedChat, loadPersistedChat } from './chat/persistence';
 import { chatSettings } from './chat/settings.svelte';
 import { playResponseComplete } from './chat/sfx';
 import { expandMentions } from './chat/mentions';
+import {
+  chatSessionState,
+  clearDetachedArchiveOnEdit,
+  getAbortController,
+  getDisplayedChatSession,
+  initChatSessionTracking,
+  isChatBusy,
+  newChatForActiveTab,
+  persistSession,
+  resetChat,
+  resetChatForActiveTab,
+  setAbortController,
+  type DetachedChatSession,
+  type TabChatSession,
+} from './chat/sessions.svelte';
 import { browserContext } from './browser/context.svelte';
 import { isBrowserTool, runBrowserTool } from './browser/tools';
 import { recordToolTraceInTrellis } from './trellis/audit';
@@ -19,43 +32,77 @@ import { isTrellisTool, runTrellisTool } from './trellis/tools';
 import { appendLocalTrace, mcpState, runTool } from './webmcp/store.svelte';
 import { BUILTIN_TOOL_NAMES, buildAgentTools, buildAgentToolSummaries, isBuiltinTool } from './webmcp/toOllamaTools';
 
-const persisted = loadPersistedChat();
+export {
+  chatSessionState,
+  getDisplayedChatSession,
+  initChatSessionTracking,
+  isChatBusy,
+  newChatForActiveTab,
+  resetChat,
+  resetChatForActiveTab,
+};
 
-export const chat = $state({
-  messages: backfillMessageTimestamps(persisted.messages),
+const EMPTY_CHAT_VIEW = {
+  tabId: -1,
+  messages: [] as UIMessage[],
   status: 'ready' as ChatStatus,
   error: null as string | null,
-});
+  url: null,
+  title: null,
+  updatedAt: 0,
+};
 
-let abortController: AbortController | null = null;
+/** Returns the currently displayed chat session (active tab or detached archive). */
+export function getChat() {
+  return getDisplayedChatSession() ?? EMPTY_CHAT_VIEW;
+}
 
 export type SendMessageInput = {
   text?: string;
   files?: FileList | File[];
 };
 
+function sessionKey(session: TabChatSession | DetachedChatSession): number {
+  return 'archiveId' in session ? -1 : session.tabId;
+}
+
+function requireWritableSession(): TabChatSession | DetachedChatSession | null {
+  const session = getDisplayedChatSession();
+  if (!session) return null;
+  if ('archiveId' in session) clearDetachedArchiveOnEdit();
+  return getDisplayedChatSession();
+}
+
 export function stampAssistantMessage(message: UIMessage) {
+  const session = getDisplayedChatSession();
+  if (!session) return;
+
   const metadata = message.metadata as ChatMessageMetadata | undefined;
   if (typeof metadata?.createdAt === 'number') return;
 
-  const index = chat.messages.findIndex((entry) => entry.id === message.id);
+  const index = session.messages.findIndex((entry) => entry.id === message.id);
   if (index < 0) return;
 
-  const existing = chat.messages[index];
-  chat.messages[index] = {
+  const existing = session.messages[index];
+  session.messages[index] = {
     ...existing,
     metadata: createMessageMetadata(existing.metadata ?? {}),
   };
 }
 
 export async function sendChatMessage(input: SendMessageInput) {
+  const session = requireWritableSession();
+  if (!session) return;
+
   const text = input.text?.trim() ?? '';
   const files = input.files ? [...input.files] : [];
   if (!text && files.length === 0) return;
   if (isChatBusy()) return;
 
-  chat.error = null;
-  chat.status = 'submitted';
+  const tabId = sessionKey(session);
+
+  session.error = null;
+  session.status = 'submitted';
 
   const userParts: UIMessage['parts'] = [];
   if (text) userParts.push({ type: 'text', text });
@@ -69,7 +116,7 @@ export async function sendChatMessage(input: SendMessageInput) {
     parts: userParts,
     metadata: createMessageMetadata(),
   };
-  chat.messages.push(userMessage);
+  session.messages.push(userMessage);
 
   const assistantMessage: UIMessage = {
     id: crypto.randomUUID(),
@@ -77,19 +124,29 @@ export async function sendChatMessage(input: SendMessageInput) {
     parts: [],
     metadata: createMessageMetadata(),
   };
-  chat.messages.push(assistantMessage);
+  session.messages.push(assistantMessage);
 
-  abortController?.abort();
-  abortController = new AbortController();
-  const requestAbort = abortController;
+  getAbortController(tabId)?.abort();
+  const requestAbort = new AbortController();
+  setAbortController(tabId, requestAbort);
 
-  chat.status = 'streaming';
+  session.status = 'streaming';
+  session.updatedAt = Date.now();
+  persistSession(session);
 
-  await runTurn(assistantMessage.id, requestAbort, 0);
+  await runTurn(session, assistantMessage.id, requestAbort, 0);
 }
 
-async function runTurn(assistantId: string, requestAbort: AbortController, iteration: number) {
-  const ollamaMessages = await toOllamaMessages(chat.messages.filter((m) => m.id !== assistantId || m.parts.length > 0));
+async function runTurn(
+  session: TabChatSession | DetachedChatSession,
+  assistantId: string,
+  requestAbort: AbortController,
+  iteration: number,
+) {
+  const tabId = sessionKey(session);
+  const ollamaMessages = await toOllamaMessages(
+    session.messages.filter((m) => m.id !== assistantId || m.parts.length > 0),
+  );
   const pageTools = mcpState.tabId != null ? (mcpState.state?.tools ?? []) : [];
   const tools = chatSettings.exposeToolsToAgent ? buildAgentTools(pageTools) : undefined;
 
@@ -103,20 +160,20 @@ async function runTurn(assistantId: string, requestAbort: AbortController, itera
       inferenceOptions: chatSettings.inference as unknown as Record<string, number>,
       signal: requestAbort.signal,
       handlers: {
-        onDelta: (delta) => appendPart(assistantId, 'text', delta),
-        onReasoning: (delta) => appendPart(assistantId, 'reasoning', delta),
+        onDelta: (delta) => appendPart(session, assistantId, 'text', delta),
+        onReasoning: (delta) => appendPart(session, assistantId, 'reasoning', delta),
         onDone: (calls) => {
-          stampReasoningEnd(assistantId);
-          stampAssistantCompleted(assistantId);
+          stampReasoningEnd(session, assistantId);
+          stampAssistantCompleted(session, assistantId);
           resolve(calls?.length ? calls : undefined);
         },
         onError: (error) => {
-          stampAssistantCompleted(assistantId);
+          stampAssistantCompleted(session, assistantId);
           if (requestAbort.signal.aborted) {
-            chat.status = 'ready';
+            session.status = 'ready';
           } else {
-            chat.status = 'error';
-            chat.error = error;
+            session.status = 'error';
+            session.error = error;
           }
           resolve(undefined);
         },
@@ -125,26 +182,30 @@ async function runTurn(assistantId: string, requestAbort: AbortController, itera
   });
 
   if (requestAbort.signal.aborted) return;
-  if (chat.status === 'error') return;
+  if (session.status === 'error') return;
 
   if (!toolCalls) {
-    chat.status = 'ready';
+    session.status = 'ready';
+    session.updatedAt = Date.now();
+    persistSession(session);
     playResponseComplete();
     return;
   }
 
   if (iteration >= MAX_TOOL_ITERATIONS) {
-    chat.status = 'error';
-    chat.error = `Stopped after ${MAX_TOOL_ITERATIONS} tool-call rounds without a final answer.`;
+    session.status = 'error';
+    session.error = `Stopped after ${MAX_TOOL_ITERATIONS} tool-call rounds without a final answer.`;
+    session.updatedAt = Date.now();
+    persistSession(session);
     return;
   }
 
-  stampToolCalls(assistantId, toolCalls);
+  stampToolCalls(session, assistantId, toolCalls);
 
   for (const call of toolCalls) {
     const args = call.function.arguments ?? {};
     const result = await runAgentTool(call.function.name, args);
-    chat.messages.push({
+    session.messages.push({
       id: crypto.randomUUID(),
       role: 'tool',
       parts: [
@@ -167,8 +228,10 @@ async function runTurn(assistantId: string, requestAbort: AbortController, itera
     parts: [],
     metadata: createMessageMetadata(),
   };
-  chat.messages.push(nextAssistant);
-  await runTurn(nextAssistant.id, requestAbort, iteration + 1);
+  session.messages.push(nextAssistant);
+  session.updatedAt = Date.now();
+  persistSession(session);
+  await runTurn(session, nextAssistant.id, requestAbort, iteration + 1);
 }
 
 async function runAgentTool(name: string, args: unknown): Promise<{ ok: boolean; result?: unknown; error?: string }> {
@@ -222,37 +285,29 @@ function toolOrigin(name: string): string {
   return mcpState.state?.tools.find((tool) => tool.name === name)?.origin ?? mcpState.tabUrl ?? 'unknown';
 }
 
-function stampToolCalls(assistantId: string, toolCalls: OllamaToolCall[]) {
-  const index = chat.messages.findIndex((entry) => entry.id === assistantId);
+function stampToolCalls(session: TabChatSession | DetachedChatSession, assistantId: string, toolCalls: OllamaToolCall[]) {
+  const index = session.messages.findIndex((entry) => entry.id === assistantId);
   if (index < 0) return;
-  const message = chat.messages[index];
+  const message = session.messages[index];
   const callParts = toolCalls.map((call) => ({
     type: 'tool-call' as const,
     id: crypto.randomUUID(),
     toolName: call.function.name,
     args: call.function.arguments ?? {},
   }));
-  chat.messages[index] = { ...message, parts: [...message.parts, ...callParts] };
+  session.messages[index] = { ...message, parts: [...message.parts, ...callParts] };
 }
 
-export function resetChat() {
-  abortController?.abort();
-  abortController = null;
-  chat.messages = [];
-  chat.status = 'ready';
-  chat.error = null;
-  clearPersistedChat();
-}
-
-export function isChatBusy() {
-  return chat.status === 'submitted' || chat.status === 'streaming';
-}
-
-function appendPart(messageId: string, type: 'text' | 'reasoning', delta: string) {
-  const index = chat.messages.findIndex((entry) => entry.id === messageId);
+function appendPart(
+  session: TabChatSession | DetachedChatSession,
+  messageId: string,
+  type: 'text' | 'reasoning',
+  delta: string,
+) {
+  const index = session.messages.findIndex((entry) => entry.id === messageId);
   if (index < 0) return;
 
-  const message = chat.messages[index];
+  const message = session.messages[index];
   const parts = [...message.parts];
   const last = parts.at(-1);
 
@@ -262,8 +317,6 @@ function appendPart(messageId: string, type: 'text' | 'reasoning', delta: string
     parts.push({ type, text: delta });
   }
 
-  // Track how long the model spent reasoning: start on the first reasoning
-  // delta, and stop once the first visible answer text arrives.
   let metadata = message.metadata ?? {};
   if (type === 'reasoning' && typeof metadata.reasoningStartedAt !== 'number') {
     metadata = { ...metadata, reasoningStartedAt: Date.now() };
@@ -275,35 +328,33 @@ function appendPart(messageId: string, type: 'text' | 'reasoning', delta: string
     metadata = { ...metadata, reasoningEndedAt: Date.now() };
   }
 
-  chat.messages[index] = { ...message, parts, metadata };
+  session.messages[index] = { ...message, parts, metadata };
 }
 
-function stampReasoningEnd(messageId: string) {
-  const index = chat.messages.findIndex((entry) => entry.id === messageId);
+function stampReasoningEnd(session: TabChatSession | DetachedChatSession, messageId: string) {
+  const index = session.messages.findIndex((entry) => entry.id === messageId);
   if (index < 0) return;
-  const message = chat.messages[index];
+  const message = session.messages[index];
   const metadata = message.metadata ?? {};
   if (typeof metadata.reasoningStartedAt === 'number' && typeof metadata.reasoningEndedAt !== 'number') {
-    chat.messages[index] = { ...message, metadata: { ...metadata, reasoningEndedAt: Date.now() } };
+    session.messages[index] = { ...message, metadata: { ...metadata, reasoningEndedAt: Date.now() } };
   }
 }
 
-function stampAssistantCompleted(messageId: string) {
-  const index = chat.messages.findIndex((entry) => entry.id === messageId);
+function stampAssistantCompleted(session: TabChatSession | DetachedChatSession, messageId: string) {
+  const index = session.messages.findIndex((entry) => entry.id === messageId);
   if (index < 0) return;
-  const message = chat.messages[index];
+  const message = session.messages[index];
   const metadata = message.metadata ?? {};
   if (typeof metadata.completedAt === 'number') return;
-  chat.messages[index] = {
+  session.messages[index] = {
     ...message,
     metadata: { ...metadata, completedAt: Date.now() },
   };
 }
 
 async function toOllamaMessages(messages: UIMessage[]): Promise<OllamaChatMessage[]> {
-  const converted: OllamaChatMessage[] = [
-    { role: 'system', content: CHAT_SYSTEM_PROMPT },
-  ];
+  const converted: OllamaChatMessage[] = [{ role: 'system', content: CHAT_SYSTEM_PROMPT }];
 
   for (const message of messages) {
     if (message.role === 'system') continue;
@@ -345,7 +396,9 @@ async function toOllamaMessages(messages: UIMessage[]): Promise<OllamaChatMessag
 
     const rawContent = `${text}${textAttachments.join('')}`.trim();
     const content =
-      message.role === 'user' ? expandMentions(rawContent, buildAgentToolSummaries(mcpState.state?.tools ?? []), mcpState.traces) : rawContent;
+      message.role === 'user'
+        ? expandMentions(rawContent, buildAgentToolSummaries(mcpState.state?.tools ?? []), mcpState.traces)
+        : rawContent;
 
     converted.push({
       role: message.role === 'assistant' ? 'assistant' : 'user',

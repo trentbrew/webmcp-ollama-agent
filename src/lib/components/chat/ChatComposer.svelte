@@ -4,8 +4,11 @@
   import { isChatBusy, sendChatMessage } from '../../chat.svelte';
   import { chatModelCatalog, chatSettings, setChatModel, setExposeToolsToAgent } from '../../chat/settings.svelte';
   import { applyComposerReplacement, detectComposerTrigger } from '../../chat/composerTriggers';
+  import { closeSessionPicker, composerUi } from '../../chat/composerUi.svelte';
   import { filterSlashCommands, type SlashCommand } from '../../chat/slashCommands';
   import { filterToolMentions, filterTraceMentions, formatToolMention } from '../../chat/mentions';
+  import { listResumableSessions, resumeSession, type ResumeTarget } from '../../chat/sessions.svelte';
+  import type { ResumableSession } from '../../chat/persistence';
   import BorderBeam from '../ui/BorderBeam.svelte';
   import { browserContext } from '../../browser/context.svelte';
   import { buildAgentToolSummaries, buildAgentTools } from '../../webmcp/toOllamaTools';
@@ -19,6 +22,25 @@
   let textarea: HTMLTextAreaElement | undefined;
   let modelMenuOpen = $state(false);
   let toolsMenuOpen = $state(false);
+  let resumableSessions = $state<ResumableSession[]>([]);
+  let sessionPickerIndex = $state(0);
+
+  const sessionPickerOpen = $derived(composerUi.sessionPickerOpen);
+
+  $effect(() => {
+    if (composerUi.modelPickerOpen) {
+      modelMenuOpen = true;
+      composerUi.modelPickerOpen = false;
+    }
+  });
+
+  $effect(() => {
+    if (!sessionPickerOpen) return;
+    void listResumableSessions().then((sessions) => {
+      resumableSessions = sessions;
+      sessionPickerIndex = 0;
+    });
+  });
 
   const busy = $derived(isChatBusy());
   const canSend = $derived(Boolean(draft.trim() || pendingFiles.length > 0));
@@ -56,7 +78,30 @@
     }));
   });
 
-  const menuOpen = $derived(trigger !== null && items.length > 0 && !menuDismissed);
+  const menuOpen = $derived(trigger !== null && items.length > 0 && !menuDismissed && !sessionPickerOpen);
+
+  function sessionLabel(session: ResumableSession): string {
+    const title = session.title || hostFromUrl(session.url) || 'Untitled tab';
+    const suffix = session.kind === 'archive' ? ' (archived)' : '';
+    return `${title}${suffix}`;
+  }
+
+  function hostFromUrl(url: string | null): string {
+    if (!url) return '';
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return url;
+    }
+  }
+
+  async function pickSession(session: ResumableSession) {
+    const target: ResumeTarget =
+      session.kind === 'open' ? { kind: 'open', tabId: session.tabId } : { kind: 'archive', id: session.id };
+    await resumeSession(target);
+    draft = '';
+    closeSessionPicker();
+  }
 
   $effect(() => {
     const key = trigger ? `${trigger.mode}:${trigger.start}:${trigger.query}` : '';
@@ -144,6 +189,30 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
+    if (sessionPickerOpen && resumableSessions.length > 0) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        sessionPickerIndex = (sessionPickerIndex + 1) % resumableSessions.length;
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        sessionPickerIndex = (sessionPickerIndex - 1 + resumableSessions.length) % resumableSessions.length;
+        return;
+      }
+      if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') {
+        event.preventDefault();
+        const session = resumableSessions[sessionPickerIndex];
+        if (session) void pickSession(session);
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSessionPicker();
+        return;
+      }
+    }
+
     if (menuOpen) {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
@@ -234,7 +303,37 @@
   {/if}
 
   <div class="chat-composer__field">
-    {#if menuOpen}
+    {#if sessionPickerOpen}
+      <div class="chat-composer__suggestions" role="listbox" aria-label="Resume conversation">
+        {#if resumableSessions.length === 0}
+          <p class="chat-composer__suggestions-empty">No other conversations to resume.</p>
+        {:else}
+          {#each resumableSessions as session, index (session.kind === 'open' ? `open-${session.tabId}` : `archive-${session.id}`)}
+            <button
+              type="button"
+              class="chat-composer__suggestion"
+              class:is-selected={index === sessionPickerIndex}
+              role="option"
+              aria-selected={index === sessionPickerIndex}
+              onmouseenter={() => (sessionPickerIndex = index)}
+              onmousedown={(event) => event.preventDefault()}
+              onclick={() => void pickSession(session)}
+            >
+              <ExternalLink size={13} class="chat-composer__suggestion-icon" />
+              <span class="chat-composer__suggestion-text">
+                <span class="chat-composer__suggestion-title">{sessionLabel(session)}</span>
+                <span class="chat-composer__suggestion-desc">
+                  {session.messageCount} message{session.messageCount === 1 ? '' : 's'}
+                  {#if session.url}
+                    · {hostFromUrl(session.url)}
+                  {/if}
+                </span>
+              </span>
+            </button>
+          {/each}
+        {/if}
+      </div>
+    {:else if menuOpen}
       <div class="chat-composer__suggestions" role="listbox" aria-label="Composer suggestions">
         {#each items as item, index (item.kind === 'slash' ? `slash-${item.command.id}` : item.kind === 'tool' ? `tool-${item.name}` : `trace-${item.id}`)}
           <button
@@ -391,6 +490,9 @@
 
 {#if modelMenuOpen}
   <button type="button" class="chat-composer__scrim" aria-label="Close model menu" onclick={() => (modelMenuOpen = false)}></button>
+{/if}
+{#if sessionPickerOpen}
+  <button type="button" class="chat-composer__scrim" aria-label="Close session picker" onclick={closeSessionPicker}></button>
 {/if}
 {#if toolsMenuOpen}
   <button type="button" class="chat-composer__scrim" aria-label="Close tools menu" onclick={() => (toolsMenuOpen = false)}></button>
@@ -551,6 +653,13 @@
     white-space: nowrap;
     font-size: 0.6875rem;
     opacity: 0.6;
+  }
+
+  .chat-composer__suggestions-empty {
+    margin: 0;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.75rem;
+    opacity: 0.65;
   }
 
   .chat-composer__tools-toggle {

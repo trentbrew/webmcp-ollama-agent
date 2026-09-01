@@ -9,6 +9,7 @@
   import LayoutWrapper from './lib/components/LayoutWrapper.svelte';
   import ChatComposer from './lib/components/chat/ChatComposer.svelte';
   import { loadAvailableModels } from './lib/chat/settings.svelte';
+  import { initChatSessionTracking } from './lib/chat.svelte';
   import { initBrowserContextTracking } from './lib/browser/context.svelte';
   import { initMcpTracking } from './lib/webmcp/store.svelte';
 
@@ -29,6 +30,7 @@
     void loadAvailableModels();
     initBrowserContextTracking();
     initMcpTracking();
+    void initChatSessionTracking();
   });
 </script>
 

@@ -1,12 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { MessageCircleDashed, RotateCw } from '../icons';
-  import { chat, isChatBusy, resetChat } from '../chat.svelte';
-  import {
-    chatSettings,
-    loadAvailableModels,
-    syncChatPersistence,
-  } from '../chat/settings.svelte';
+  import { RotateCw } from '../icons';
+  import { chatSessionState, getChat, isChatBusy, resetChat } from '../chat.svelte';
+  import { loadAvailableModels, syncChatPersistence } from '../chat/settings.svelte';
+  import { browserContext } from '../browser/context.svelte';
+  import ChatEmptyState from '../components/chat/ChatEmptyState.svelte';
   import ChatTranscript from '../components/chat/ChatTranscript.svelte';
   import ChatComposer from '../components/chat/ChatComposer.svelte';
 
@@ -14,23 +12,66 @@
   // rendered at the app shell, so it opts out here.
   let { showComposer = true }: { showComposer?: boolean } = $props();
 
+  const chat = $derived.by(() => {
+    chatSessionState.activeTabId;
+    chatSessionState.detached;
+    const session = getChat();
+    void session.messages.length;
+    void session.status;
+    void session.error;
+    return session;
+  });
+
   const messages = $derived(chat.messages);
   const busy = $derived(isChatBusy());
   const streaming = $derived(chat.status === 'streaming');
   const hasError = $derived(chat.status === 'error');
+
+  const activeTab = $derived(browserContext.activeTab);
+  const isDetached = $derived(chatSessionState.detached != null);
+  const toolbarTitle = $derived(
+    isDetached
+      ? chat.title || hostFromUrl(chat.url) || 'Archived conversation'
+      : activeTab?.title || hostFromUrl(activeTab?.url) || 'No active tab',
+  );
+  const toolbarHost = $derived(
+    isDetached ? hostFromUrl(chat.url) : hostFromUrl(activeTab?.url),
+  );
+
+  function hostFromUrl(url: string | null | undefined): string {
+    if (!url) return '';
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return url;
+    }
+  }
 
   onMount(() => {
     void loadAvailableModels();
   });
 
   $effect(() => {
-    syncChatPersistence(chat.messages);
+    void chat.messages.length;
+    void chatSessionState.activeTabId;
+    void chatSessionState.detached;
+    syncChatPersistence();
   });
 </script>
 
 <div class="chat-page">
   <div class="chat-page__toolbar">
-    <span class="chat-page__count">{messages.length} messages</span>
+    {#if !isDetached && activeTab?.favIconUrl}
+      <img class="chat-page__favicon" src={activeTab.favIconUrl} alt="" />
+    {/if}
+    <span class="chat-page__title truncate" title={toolbarTitle}>{toolbarTitle}</span>
+    {#if toolbarHost}
+      <span class="chat-page__host truncate">{toolbarHost}</span>
+    {/if}
+    {#if isDetached}
+      <span class="chat-page__badge">archived</span>
+    {/if}
+    <span class="chat-page__count">{messages.length} msg{messages.length === 1 ? '' : 's'}</span>
     {#if streaming}
       <span class="chat-page__dot" aria-hidden="true">·</span>
       <span class="chat-page__detail">streaming…</span>
@@ -50,13 +91,7 @@
   </div>
 
   {#if messages.length === 0}
-    <div class="chat-page__empty">
-      <MessageCircleDashed size={28} class="chat-page__empty-icon" />
-      <p class="chat-page__empty-title">How can I help?</p>
-      <p class="chat-page__empty-subtitle">
-        Ask a question or attach a file for context. Replies stream from local Ollama ({chatSettings.model}).
-      </p>
-    </div>
+    <ChatEmptyState />
   {:else}
     <ChatTranscript />
   {/if}
@@ -85,8 +120,40 @@
     opacity: 0.75;
   }
 
+  .chat-page__favicon {
+    width: 0.875rem;
+    height: 0.875rem;
+    flex-shrink: 0;
+    border-radius: 0.125rem;
+  }
+
+  .chat-page__title {
+    min-width: 0;
+    max-width: 10rem;
+    font-weight: 600;
+    color: oklch(var(--bc) / 0.85);
+  }
+
+  .chat-page__host {
+    min-width: 0;
+    max-width: 6rem;
+    opacity: 0.7;
+  }
+
+  .chat-page__badge {
+    flex-shrink: 0;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, currentColor 10%, transparent);
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
   .chat-page__count {
     flex-shrink: 0;
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
   }
 
   .chat-page__dot {
@@ -112,7 +179,6 @@
     justify-content: center;
     width: 1.5rem;
     height: 1.5rem;
-    margin-left: auto;
     border: none;
     border-radius: 0.375rem;
     background: transparent;
@@ -129,36 +195,5 @@
   .chat-page__reset:disabled {
     opacity: 0.3;
     cursor: not-allowed;
-  }
-
-  .chat-page__empty {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.625rem;
-    max-width: 22rem;
-    margin: 0 auto;
-    padding: 1.5rem;
-    text-align: center;
-  }
-
-  :global(.chat-page__empty-icon) {
-    opacity: 0.6;
-  }
-
-  .chat-page__empty-title {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 500;
-  }
-
-  .chat-page__empty-subtitle {
-    margin: 0;
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    opacity: 0.65;
   }
 </style>

@@ -216,6 +216,16 @@ function handleTabPortMessage(tabId: number, message: BridgeToBackground) {
   }
 }
 
+function requestTabToolList(tabId: number) {
+  const bridgePort = tabPorts.get(tabId);
+  if (!bridgePort) return;
+  try {
+    bridgePort.postMessage({ type: 'list-tools' } satisfies BackgroundToBridge);
+  } catch {
+    // Bridge disconnected -- page will push state on reconnect.
+  }
+}
+
 function handlePanelMessage(port: chrome.runtime.Port, message: PanelToBackground) {
   if (message.type === 'subscribe') {
     panelSubscriptions.set(port, message.tabId);
@@ -227,6 +237,7 @@ function handlePanelMessage(port: chrome.runtime.Port, message: PanelToBackgroun
         // Panel closed already.
       }
     });
+    requestTabToolList(message.tabId);
     void loadTraces(message.tabId).then((list) => {
       try {
         port.postMessage({ type: 'trace-snapshot', tabId: message.tabId, traces: list } satisfies BackgroundToPanel);

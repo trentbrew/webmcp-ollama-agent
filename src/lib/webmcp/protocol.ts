@@ -75,7 +75,9 @@ export type BridgeToBackground =
   | { type: 'tool-result'; requestId: string; ok: boolean; result?: unknown; error?: string; durationMs: number }
   | { type: 'console-entry'; level: ConsoleLevel; args: string[]; timestamp: number };
 
-export type BackgroundToBridge = { type: 'call-tool'; requestId: string; name: string; args: unknown };
+export type BackgroundToBridge =
+  | { type: 'call-tool'; requestId: string; name: string; args: unknown }
+  | { type: 'list-tools' };
 
 // ---- Side panel <-> background, via chrome.runtime.connect ----
 

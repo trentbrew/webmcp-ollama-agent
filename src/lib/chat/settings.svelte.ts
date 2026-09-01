@@ -1,23 +1,26 @@
-import { DEFAULT_INFERENCE_OPTIONS, DEFAULT_OLLAMA_BASE_URL, DEFAULT_OLLAMA_MODEL, type InferenceOptions } from '../ai/config';
+import { DEFAULT_INFERENCE_OPTIONS, DEFAULT_OLLAMA_MODEL } from '../ai/config';
 import { configureOllamaBridge, listOllamaModels } from '../ai/ollama';
-import type { UIMessage } from '../ai/protocol';
-import { loadPersistedChat, persistChat } from './persistence';
+import { loadChatSettings, persistChatSettings } from './persistence';
+import { getDisplayedChatSession, persistSession } from './sessions.svelte';
 
-const persisted = loadPersistedChat();
+const persisted = loadChatSettings();
 
 export const chatSettings = $state({
-  model: persisted.model || DEFAULT_OLLAMA_MODEL,
-  baseUrl: persisted.baseUrl || DEFAULT_OLLAMA_BASE_URL,
+  model: persisted.model,
+  baseUrl: persisted.baseUrl,
   inference: { ...DEFAULT_INFERENCE_OPTIONS, ...persisted.inference },
-  exposeToolsToAgent: persisted.exposeToolsToAgent ?? true,
-  keepThinkingOpen: persisted.keepThinkingOpen ?? true,
+  exposeToolsToAgent: persisted.exposeToolsToAgent,
+  keepThinkingOpen: persisted.keepThinkingOpen,
 });
 
 export function setKeepThinkingOpen(value: boolean) {
   chatSettings.keepThinkingOpen = value;
 }
 
-export function setInferenceOption<K extends keyof InferenceOptions>(key: K, value: InferenceOptions[K]) {
+export function setInferenceOption<K extends keyof typeof chatSettings.inference>(
+  key: K,
+  value: (typeof chatSettings.inference)[K],
+) {
   chatSettings.inference[key] = value;
 }
 
@@ -26,7 +29,7 @@ export function resetInferenceOptions() {
 }
 
 /** Reset a single inference parameter to its shipped default (e.g. on double-click). */
-export function resetInferenceOption<K extends keyof InferenceOptions>(key: K) {
+export function resetInferenceOption<K extends keyof typeof chatSettings.inference>(key: K) {
   chatSettings.inference[key] = DEFAULT_INFERENCE_OPTIONS[key];
 }
 
@@ -35,7 +38,7 @@ export function setExposeToolsToAgent(value: boolean) {
 }
 
 export const chatModelCatalog = $state({
-  available: [DEFAULT_OLLAMA_MODEL] as string[],
+  available: [persisted.model || DEFAULT_OLLAMA_MODEL] as string[],
   unavailable: false,
   error: null as string | null,
 });
@@ -82,13 +85,17 @@ export async function loadAvailableModels(force = false) {
   }
 }
 
-export function syncChatPersistence(messages: UIMessage[]) {
-  persistChat(
-    chatSettings.model,
-    messages,
-    chatSettings.baseUrl,
-    chatSettings.inference,
-    chatSettings.exposeToolsToAgent,
-    chatSettings.keepThinkingOpen,
-  );
+export function syncChatPersistence() {
+  persistChatSettings({
+    model: chatSettings.model,
+    baseUrl: chatSettings.baseUrl,
+    inference: chatSettings.inference,
+    exposeToolsToAgent: chatSettings.exposeToolsToAgent,
+    keepThinkingOpen: chatSettings.keepThinkingOpen,
+  });
+
+  const session = getDisplayedChatSession();
+  if (session && !('archiveId' in session)) {
+    persistSession(session);
+  }
 }

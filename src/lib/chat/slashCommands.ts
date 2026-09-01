@@ -1,4 +1,5 @@
-import { resetChat } from '../chat.svelte';
+import { newChatForActiveTab, resetChat } from '../chat.svelte';
+import { requestModelPicker, requestSessionPicker } from './composerUi.svelte';
 
 export type SlashCommand = {
   id: string;
@@ -7,6 +8,27 @@ export type SlashCommand = {
 } & ({ kind: 'insert'; insert: string } | { kind: 'action'; action: () => void });
 
 export const SLASH_COMMANDS: SlashCommand[] = [
+  {
+    id: 'new',
+    title: '/new',
+    description: 'Start a fresh conversation for this tab',
+    kind: 'action',
+    action: () => newChatForActiveTab(),
+  },
+  {
+    id: 'resume',
+    title: '/resume',
+    description: "Switch to another tab's conversation",
+    kind: 'action',
+    action: () => requestSessionPicker(),
+  },
+  {
+    id: 'model',
+    title: '/model',
+    description: 'Open model picker',
+    kind: 'action',
+    action: () => requestModelPicker(),
+  },
   {
     id: 'tools',
     title: '/tools',

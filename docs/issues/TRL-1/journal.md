@@ -23,3 +23,16 @@
 - pnpm check exit 1 waived (pre-existing ShadowDOMDemo; ops wedge — zero webmcp src delta)
 - e2e N/A — pi-sync-smoke accepted for ops transport adapter
 - REVIEW: PASS → strategist close TRL-2 + TRL-1
+
+## 2026-09-01 — Strategist route (pathway A ship)
+
+- Ack TRL-2 REVIEW PASS (pi-sync-smoke 10/10, pnpm check exit 0 post ambient fix)
+- Closed TRL-2; ac-pass parent TRL-1 prose AC; closed TRL-1
+- Milestone: Shipped pi-compat transport adapter
+- Standing decision: pathway A applied
+
+## 2026-09-01 — Strategist route (pathway B auto-applied)
+
+- Auto-decision: pathway B — pi runtime smokes
+- Created TRL-3 (parent TRL-1), started, queued for architect spec
+- HANDOFF → architect

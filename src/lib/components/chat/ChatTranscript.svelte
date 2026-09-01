@@ -1,7 +1,16 @@
 <script lang="ts">
-  import { chat } from '../../chat.svelte';
+  import { chatSessionState, getChat } from '../../chat.svelte';
   import type { UIMessage } from '../../ai/protocol';
   import ChatMessage from './ChatMessage.svelte';
+
+  const chat = $derived.by(() => {
+    chatSessionState.activeTabId;
+    chatSessionState.detached;
+    const session = getChat();
+    void session.messages.length;
+    void session.status;
+    return session;
+  });
 
   const messages = $derived(chat.messages);
 

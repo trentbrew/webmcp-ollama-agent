@@ -77,6 +77,22 @@ function broadcastState(requestId?: string) {
   post({ type: 'tools', requestId, detected, tools: summarize() });
 }
 
+function getCurrentContext(): ModelContextLike | undefined {
+  const docCtx = (document as unknown as Record<string, unknown>).modelContext as
+    | ModelContextLike
+    | undefined;
+  if (docCtx) return docCtx;
+  return (navigator as unknown as Record<string, unknown>).modelContext as
+    | ModelContextLike
+    | undefined;
+}
+
+async function respondToListTools(requestId?: string) {
+  const ctx = getCurrentContext();
+  if (ctx) await refreshMetadata(ctx);
+  else broadcastState(requestId);
+}
+
 function wrapModelContext(ctx: ModelContextLike | undefined | null): ModelContextLike | undefined {
   if (!ctx || (ctx as { __webmcpWrapped?: boolean }).__webmcpWrapped) return ctx ?? undefined;
 
@@ -98,6 +114,7 @@ function wrapModelContext(ctx: ModelContextLike | undefined | null): ModelContex
 
   (ctx as { __webmcpWrapped?: boolean }).__webmcpWrapped = true;
   detected = true;
+  void refreshMetadata(ctx);
   return ctx;
 }
 
@@ -150,6 +167,8 @@ function watch(target: object, key: 'modelContext') {
   };
 
   tryWrap();
+  queueMicrotask(tryWrap);
+  setTimeout(tryWrap, 0);
 
   try {
     let value = (target as Record<string, unknown>)[key] as ModelContextLike | undefined;
@@ -226,7 +245,7 @@ window.addEventListener('message', (event) => {
   const request = data as { type: string; requestId: string; name?: string; args?: unknown };
 
   if (request.type === 'list-tools') {
-    broadcastState(request.requestId);
+    void respondToListTools(request.requestId);
     return;
   }
 

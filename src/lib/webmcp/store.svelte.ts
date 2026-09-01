@@ -7,10 +7,6 @@ import {
   type ToolCallTrace,
 } from './protocol';
 
-function emptyState(tabId: number): TabMcpState {
-  return { tabId, url: null, detected: false, tools: [], updatedAt: Date.now() };
-}
-
 export const mcpState = $state({
   tabId: null as number | null,
   tabUrl: null as string | null,
@@ -41,7 +37,7 @@ function connect() {
 
   port.onMessage.addListener((message: BackgroundToPanel) => {
     if (message.type === 'tab-state') {
-      mcpState.state = message.state;
+      if (message.state.tabId === mcpState.tabId) mcpState.state = message.state;
       return;
     }
     if (message.type === 'trace-snapshot') {
@@ -88,7 +84,6 @@ async function subscribeToActiveTab() {
 
   mcpState.tabId = tab.id;
   mcpState.tabUrl = tab.url ?? null;
-  mcpState.state = emptyState(tab.id);
   mcpState.traces = [];
   mcpState.console = [];
   send({ type: 'subscribe', tabId: tab.id });
@@ -108,6 +103,9 @@ export function initMcpTracking() {
     if (tabId !== mcpState.tabId) return;
     if (changeInfo.url) mcpState.tabUrl = changeInfo.url;
     else if (tab.url) mcpState.tabUrl = tab.url;
+    if (changeInfo.status === 'complete') {
+      send({ type: 'subscribe', tabId });
+    }
   });
 }
 

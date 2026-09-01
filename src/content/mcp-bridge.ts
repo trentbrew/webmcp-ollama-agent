@@ -72,6 +72,11 @@ window.addEventListener('message', (event) => {
 });
 
 function handleBackgroundMessage(message: BackgroundToBridge) {
+  if (message.type === 'list-tools') {
+    window.postMessage({ source: WEBMCP_BRIDGE_SOURCE, type: 'list-tools', requestId: 'background' }, '*');
+    return;
+  }
+
   if (message.type === 'call-tool') {
     window.postMessage(
       { source: WEBMCP_BRIDGE_SOURCE, type: 'call-tool', requestId: message.requestId, name: message.name, args: message.args },
