@@ -15,3 +15,10 @@ Design artifacts: `docs/artifacts/chat_sessions_design.md`, `chat_sessions_mocku
 4. E2e deferred — manual verify checklist in summary
 
 **Check at handoff:** 2/6 AC (pnpm check + pnpm test pass on baseline; impl AC pending).
+
+## 2026-09-01 — Strategist ship (TRL-6/7/8)
+
+**Review:** TRL-9 PASS on TRL-8 (e2e waived — tooling wedge).
+**Closed:** TRL-8 (spec), TRL-7 (design), TRL-6 (proposal parent).
+**Removed:** stale TRL-6 playwright AC (no harness in spoke).
+**Hotfix (ad-hoc):** Pi `trellis-lanes` — `tryPipelineDecision` replaces bogus `parseHumanPathwayReply`.

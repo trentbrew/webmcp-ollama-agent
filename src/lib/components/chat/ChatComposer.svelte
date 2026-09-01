@@ -644,8 +644,9 @@
     gap: 0.375rem;
     flex-shrink: 0;
     margin: 0.5rem;
+    margin-top: 0 !important;
     padding: 0.5rem;
-    padding-top: 0 !important;
+    box-shadow: 0 -8px 24px 0 color-mix(in oklab, currentColor 12%, black);
     border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
     border-radius: 0.75rem;
     background: color-mix(in oklab, currentColor 3%, transparent);
