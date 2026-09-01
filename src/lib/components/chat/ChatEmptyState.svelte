@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { MessageCircleDashed, Radar, Terminal, Wrench } from '../../icons';
+  import { MessageCircleDashed, Radar } from '../../icons';
   import { isChatBusy, sendChatMessage } from '../../chat.svelte';
   import { chatSettings } from '../../chat/settings.svelte';
   import {
@@ -27,9 +27,9 @@
 
 <div class="chat-empty">
   {#if invokableCount > 0}
-    <Radar size={28} class="chat-empty__icon chat-empty__icon--active" />
+    <Radar size={24} class="chat-empty__icon chat-empty__icon--active" />
   {:else}
-    <MessageCircleDashed size={28} class="chat-empty__icon" />
+    <MessageCircleDashed size={24} class="chat-empty__icon" />
   {/if}
 
   <p class="chat-empty__title">
@@ -52,21 +52,12 @@
     {#each suggestions as suggestion (suggestion.id)}
       <button
         type="button"
-        class="chat-empty__suggestion"
+        class="chat-empty__pill"
+        class:is-tool={suggestion.variant === 'tool'}
         disabled={busy}
         onclick={() => void handleSelect(suggestion.prompt)}
       >
-        {#if suggestion.id.startsWith('tool:')}
-          <Wrench size={14} class="chat-empty__suggestion-icon" />
-        {:else}
-          <Terminal size={14} class="chat-empty__suggestion-icon" />
-        {/if}
-        <span class="chat-empty__suggestion-text">
-          <span class="chat-empty__suggestion-label">{suggestion.label}</span>
-          <span class="chat-empty__suggestion-desc"
-            >{suggestion.description}</span
-          >
-        </span>
+        {suggestion.label}
       </button>
     {/each}
   </div>
@@ -80,16 +71,16 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.625rem;
+    gap: 0.5rem;
     width: 100%;
-    max-width: 28rem;
+    max-width: 32rem;
     margin: 0 auto;
-    padding: 1.5rem;
+    padding: 1.25rem 1.5rem 2rem;
     text-align: center;
   }
 
   :global(.chat-empty__icon) {
-    opacity: 0.6;
+    opacity: 0.55;
   }
 
   :global(.chat-empty__icon--active) {
@@ -99,73 +90,58 @@
 
   .chat-empty__title {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 500;
   }
 
   .chat-empty__subtitle {
     margin: 0;
+    max-width: 22rem;
     font-size: 0.8125rem;
-    line-height: 1.5;
-    opacity: 0.65;
+    line-height: 1.45;
+    opacity: 0.6;
   }
 
   .chat-empty__suggestions {
     display: flex;
-    width: 100%;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-top: 0.75rem;
-    text-align: left;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.875rem;
   }
 
-  .chat-empty__suggestion {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.625rem;
-    width: 100%;
-    padding: 0.625rem 0.75rem;
-    border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
-    border-radius: 0.5rem;
-    background: color-mix(in oklab, currentColor 4%, transparent);
+  .chat-empty__pill {
+    padding: 0.4375rem 0.875rem;
+    border: 1px solid color-mix(in oklab, currentColor 14%, transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab, currentColor 5%, transparent);
     color: inherit;
+    font-size: 0.8125rem;
+    line-height: 1.2;
     cursor: pointer;
     transition:
       border-color 150ms ease,
       background 150ms ease;
   }
 
-  .chat-empty__suggestion:hover:not(:disabled) {
-    border-color: color-mix(in oklab, currentColor 22%, transparent);
-    background: color-mix(in oklab, currentColor 8%, transparent);
+  .chat-empty__pill:hover:not(:disabled) {
+    border-color: color-mix(in oklab, currentColor 24%, transparent);
+    background: color-mix(in oklab, currentColor 9%, transparent);
   }
 
-  .chat-empty__suggestion:disabled {
+  .chat-empty__pill.is-tool {
+    border-color: oklch(var(--su) / 0.45);
+    background: oklch(var(--su) / 0.12);
+    color: oklch(var(--suc, var(--su)));
+  }
+
+  .chat-empty__pill.is-tool:hover:not(:disabled) {
+    border-color: oklch(var(--su) / 0.6);
+    background: oklch(var(--su) / 0.18);
+  }
+
+  .chat-empty__pill:disabled {
     opacity: 0.45;
     cursor: not-allowed;
-  }
-
-  :global(.chat-empty__suggestion-icon) {
-    flex-shrink: 0;
-    margin-top: 0.125rem;
-    opacity: 0.65;
-  }
-
-  .chat-empty__suggestion-text {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-    gap: 0.125rem;
-  }
-
-  .chat-empty__suggestion-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-  }
-
-  .chat-empty__suggestion-desc {
-    font-size: 0.75rem;
-    line-height: 1.4;
-    opacity: 0.65;
   }
 </style>

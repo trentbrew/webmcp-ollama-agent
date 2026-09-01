@@ -42,7 +42,8 @@
   import { browserContext } from '../../browser/context.svelte';
   import {
     buildAgentToolSummaries,
-    buildAgentTools,
+    buildBuiltinToolSummaries,
+    buildDiscoveredToolSummaries,
   } from '../../webmcp/toOllamaTools';
   import { mcpState } from '../../webmcp/store.svelte';
 
@@ -200,12 +201,10 @@
     });
   }
 
-  const toolCount = $derived(
-    buildAgentTools(mcpState.state?.tools ?? []).length,
-  );
-  const toolSummaries = $derived(
-    buildAgentToolSummaries(mcpState.state?.tools ?? []),
-  );
+  const pageTools = $derived(mcpState.state?.tools ?? []);
+  const discoveredTools = $derived(buildDiscoveredToolSummaries(pageTools));
+  const builtinTools = $derived(buildBuiltinToolSummaries());
+  const toolCount = $derived(discoveredTools.length + builtinTools.length);
   const activeTab = $derived(browserContext.activeTab);
   const activeTabTitle = $derived(
     activeTab?.title || activeTabHost(activeTab?.url) || 'Active tab',
@@ -501,19 +500,31 @@
       </button>
 
       <div class="chat-composer__tools">
-        <button
-          type="button"
-          class="chat-composer__tools-toggle"
-          class:is-on={chatSettings.exposeToolsToAgent}
-          aria-haspopup="menu"
-          aria-expanded={toolsMenuOpen}
-          disabled={toolCount === 0}
-          title={`${toolCount} tool${toolCount === 1 ? '' : 's'} available`}
-          onclick={() => (toolsMenuOpen = !toolsMenuOpen)}
-        >
-          <Wrench size={12} />
-          {toolCount}
-        </button>
+        <div class="chat-composer__tools-pills">
+          <button
+            type="button"
+            class="chat-composer__tools-pill"
+            class:is-on={chatSettings.exposeToolsToAgent}
+            aria-haspopup="menu"
+            aria-expanded={toolsMenuOpen}
+            title={`${builtinTools.length} built-in tool${builtinTools.length === 1 ? '' : 's'}`}
+            onclick={() => (toolsMenuOpen = !toolsMenuOpen)}
+          >
+            {builtinTools.length} built-in
+          </button>
+          <button
+            type="button"
+            class="chat-composer__tools-pill"
+            class:is-discovered={discoveredTools.length > 0}
+            class:is-on={chatSettings.exposeToolsToAgent}
+            aria-haspopup="menu"
+            aria-expanded={toolsMenuOpen}
+            title={`${discoveredTools.length} discovered tool${discoveredTools.length === 1 ? '' : 's'}`}
+            onclick={() => (toolsMenuOpen = !toolsMenuOpen)}
+          >
+            {discoveredTools.length} discovered
+          </button>
+        </div>
         {#if toolsMenuOpen}
           <div class="chat-composer__tools-menu" role="menu">
             <div class="chat-composer__tools-header">
@@ -532,7 +543,38 @@
               </label>
             </div>
             <div class="chat-composer__tools-list">
-              {#each toolSummaries as tool (tool.name)}
+              {#if discoveredTools.length > 0}
+                <p class="chat-composer__tools-section">Discovered</p>
+                {#each discoveredTools as tool (tool.name)}
+                  <button
+                    type="button"
+                    class="chat-composer__tools-item"
+                    role="menuitem"
+                    title={tool.description}
+                    onclick={() => {
+                      insertReplacement(`${formatToolMention(tool.name)} `);
+                      toolsMenuOpen = false;
+                    }}
+                  >
+                    <Wrench
+                      size={12}
+                      class="chat-composer__tools-item-icon is-discovered"
+                    />
+                    <span class="chat-composer__tools-item-body">
+                      <span class="chat-composer__tools-item-name"
+                        >{tool.name}</span
+                      >
+                      {#if tool.description}
+                        <span class="chat-composer__tools-item-desc"
+                          >{tool.description}</span
+                        >
+                      {/if}
+                    </span>
+                  </button>
+                {/each}
+              {/if}
+              <p class="chat-composer__tools-section">Built-in</p>
+              {#each builtinTools as tool (tool.name)}
                 <button
                   type="button"
                   class="chat-composer__tools-item"
@@ -555,10 +597,6 @@
                     {/if}
                   </span>
                 </button>
-              {:else}
-                <p class="chat-composer__tools-empty">
-                  No tools available on this page.
-                </p>
               {/each}
             </div>
           </div>
@@ -803,10 +841,15 @@
     opacity: 0.65;
   }
 
-  .chat-composer__tools-toggle {
+  .chat-composer__tools-pills {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.3125rem;
+  }
+
+  .chat-composer__tools-pill {
+    display: inline-flex;
+    align-items: center;
     padding: 0.1875rem 0.5rem;
     border: 1px solid color-mix(in oklab, currentColor 16%, transparent);
     border-radius: 999px;
@@ -814,19 +857,29 @@
     color: inherit;
     opacity: 0.55;
     font-size: 0.6875rem;
+    line-height: 1.2;
+    white-space: nowrap;
     cursor: pointer;
   }
 
-  .chat-composer__tools-toggle.is-on {
+  .chat-composer__tools-pill.is-discovered {
+    opacity: 1;
+    border-color: oklch(var(--su) / 0.45);
+    background: oklch(var(--su) / 0.12);
+    color: oklch(var(--suc, var(--su)));
+  }
+
+  .chat-composer__tools-pill.is-on {
     opacity: 1;
     border-color: oklch(var(--p) / 0.5);
     background: oklch(var(--p) / 0.12);
     color: oklch(var(--p));
   }
 
-  .chat-composer__tools-toggle:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
+  .chat-composer__tools-pill.is-on.is-discovered {
+    border-color: oklch(var(--su) / 0.55);
+    background: oklch(var(--su) / 0.16);
+    color: oklch(var(--suc, var(--su)));
   }
 
   .chat-composer__tools {
@@ -883,6 +936,19 @@
     padding: 0.25rem;
   }
 
+  .chat-composer__tools-section {
+    margin: 0.25rem 0.45rem 0.125rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.5;
+  }
+
+  .chat-composer__tools-section:first-child {
+    margin-top: 0;
+  }
+
   .chat-composer__tools-item {
     display: flex;
     align-items: flex-start;
@@ -906,6 +972,11 @@
     opacity: 0.6;
   }
 
+  :global(.chat-composer__tools-item-icon.is-discovered) {
+    opacity: 0.85;
+    color: oklch(var(--su));
+  }
+
   .chat-composer__tools-item-body {
     display: flex;
     flex-direction: column;
@@ -923,14 +994,6 @@
     font-size: 0.68rem;
     line-height: 1.35;
     opacity: 0.6;
-  }
-
-  .chat-composer__tools-empty {
-    margin: 0;
-    padding: 0.6rem;
-    font-size: 0.72rem;
-    opacity: 0.6;
-    text-align: center;
   }
 
   .chat-composer__textarea {

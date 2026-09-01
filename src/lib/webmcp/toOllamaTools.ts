@@ -62,6 +62,8 @@ const BUILTIN_TOOLS: OllamaTool[] = [
                 multiple: { type: 'boolean', description: 'Allow selecting more than one choice.' },
                 choices: {
                   type: 'array',
+                  description:
+                    'Choice list for enum/radio questions. Use "choices" (not "items") for options.',
                   items: {
                     type: 'object',
                     required: ['value', 'label'],
@@ -79,6 +81,19 @@ const BUILTIN_TOOLS: OllamaTool[] = [
                   properties: {
                     label: { type: 'string' },
                     placeholder: { type: 'string' },
+                    inputType: {
+                      type: 'string',
+                      enum: ['text', 'number', 'date'],
+                      description: 'Use "date" for YYYY-MM-DD fields.',
+                    },
+                  },
+                },
+                when: {
+                  type: 'object',
+                  description:
+                    'Optional visibility gate keyed by prior answer names, e.g. { "tripType": "round-trip" }.',
+                  additionalProperties: {
+                    oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
                   },
                 },
               },
@@ -100,9 +115,8 @@ export function isBuiltinTool(name: string): boolean {
   );
 }
 
-export function buildAgentToolSummaries(pageTools: WebMcpToolSummary[]): WebMcpToolSummary[] {
-  const invokable = pageTools.filter((tool) => tool.invokable && !isBuiltinTool(tool.name));
-  const local = [...BUILTIN_TOOLS, ...BROWSER_TOOLS, ...TRELLIS_TOOLS].map((tool) => ({
+export function buildBuiltinToolSummaries(): WebMcpToolSummary[] {
+  return [...BUILTIN_TOOLS, ...BROWSER_TOOLS, ...TRELLIS_TOOLS].map((tool) => ({
     name: tool.function.name,
     description: tool.function.description ?? '',
     inputSchema: tool.function.parameters,
@@ -110,7 +124,14 @@ export function buildAgentToolSummaries(pageTools: WebMcpToolSummary[]): WebMcpT
     origin: 'webmcp-extension',
     invokable: true,
   }));
-  return [...invokable, ...local];
+}
+
+export function buildDiscoveredToolSummaries(pageTools: WebMcpToolSummary[]): WebMcpToolSummary[] {
+  return pageTools.filter((tool) => tool.invokable && !isBuiltinTool(tool.name));
+}
+
+export function buildAgentToolSummaries(pageTools: WebMcpToolSummary[]): WebMcpToolSummary[] {
+  return [...buildDiscoveredToolSummaries(pageTools), ...buildBuiltinToolSummaries()];
 }
 
 function isReadOnlyLocalTool(name: string): boolean {
@@ -137,6 +158,6 @@ function toolToOllama(tool: WebMcpToolSummary): OllamaTool {
 }
 
 export function buildAgentTools(pageTools: WebMcpToolSummary[]): OllamaTool[] {
-  const invokable = pageTools.filter((tool) => tool.invokable && !isBuiltinTool(tool.name)).map(toolToOllama);
+  const invokable = buildDiscoveredToolSummaries(pageTools).map(toolToOllama);
   return [...invokable, ...BUILTIN_TOOLS, ...BROWSER_TOOLS, ...TRELLIS_TOOLS];
 }
