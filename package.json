@@ -9,6 +9,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check:shell-colors": "node scripts/check-shell-colors.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
