@@ -4,6 +4,18 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 
 export default defineConfig({
   plugins: [svelte()],
+  server: {
+    // Browser dev (localhost:5173) cannot call Ollama directly — no CORS headers.
+    // The extension background worker bypasses this via declarativeNetRequest; here we
+    // proxy same-origin so fetch/streamDirect work during local development.
+    proxy: {
+      '/ollama': {
+        target: 'http://127.0.0.1:11434',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ollama/, ''),
+      },
+    },
+  },
   build: {
     outDir: 'dist',
     rollupOptions: {

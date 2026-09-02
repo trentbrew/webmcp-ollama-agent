@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  extractAskUserPayloadFromText,
   formatAnswersSummary,
   isItemAnswered,
   isQuestionVisible,
+  normalizeAskUserPayload,
   parseAskUserArgs,
   seedAnswersFromDefaults,
+  stripAskUserPseudoCode,
   todayIsoDate,
   validateItemValue,
   validateQuestionnaire,
@@ -57,6 +60,47 @@ describe('parseAskUserArgs', () => {
   it('rejects items without choices or input', () => {
     const result = parseAskUserArgs({ items: [{ name: 'x', prompt: 'X?' }] });
     expect(result.ok).toBe(false);
+  });
+
+  it('accepts title/choices shorthand at top level', () => {
+    const result = parseAskUserArgs({
+      type: 'choice',
+      title: 'Start New Maze Game?',
+      description: 'Are you sure?',
+      choices: ['Yes', 'No'],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.items[0].prompt).toBe('Start New Maze Game?');
+      expect(result.items[0].choices?.map((c) => c.value)).toEqual(['Yes', 'No']);
+    }
+  });
+});
+
+describe('extractAskUserPayloadFromText', () => {
+  it('parses ask_user pseudo-code from reasoning text', () => {
+    const text = `I'll confirm first:\n\`\`\`js\n(await ask_user({
+      "type": "choice",
+      "title": "Start game?",
+      "choices": ["Yes", "No"]
+    })).choice === "Yes"\n\`\`\``;
+    const payload = extractAskUserPayloadFromText(text);
+    expect(payload).toMatchObject({ title: 'Start game?', choices: ['Yes', 'No'] });
+    const parsed = parseAskUserArgs(payload);
+    expect(parsed.ok).toBe(true);
+  });
+});
+
+describe('stripAskUserPseudoCode', () => {
+  it('removes fenced ask_user blocks', () => {
+    const text = 'Before\n```js\nask_user({ "title": "Go?", "choices": ["Yes"] })\n```\nAfter';
+    expect(stripAskUserPseudoCode(text)).toBe('Before\n\nAfter');
+  });
+});
+
+describe('normalizeAskUserPayload', () => {
+  it('returns null for empty payloads', () => {
+    expect(normalizeAskUserPayload({})).toBeNull();
   });
 });
 

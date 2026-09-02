@@ -1,4 +1,4 @@
-import { DEFAULT_INFERENCE_OPTIONS, DEFAULT_OLLAMA_MODEL } from '../ai/config';
+import { DEFAULT_INFERENCE_OPTIONS, DEFAULT_OLLAMA_MODEL, MAX_CUSTOM_INSTRUCTIONS_LENGTH } from '../ai/config';
 import { configureOllamaBridge, listOllamaModels } from '../ai/ollama';
 import { loadChatSettings, persistChatSettings } from './persistence';
 import { getDisplayedChatSession, persistSession } from './sessions.svelte';
@@ -12,6 +12,7 @@ export const chatSettings = $state({
   exposeToolsToAgent: persisted.exposeToolsToAgent,
   keepThinkingOpen: persisted.keepThinkingOpen,
   language: persisted.language,
+  customInstructions: persisted.customInstructions,
 });
 
 export function setKeepThinkingOpen(value: boolean) {
@@ -21,6 +22,16 @@ export function setKeepThinkingOpen(value: boolean) {
 
 export function setChatLanguage(language: typeof chatSettings.language) {
   chatSettings.language = language;
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
+}
+
+export function setCustomInstructions(value: string) {
+  chatSettings.customInstructions = value.slice(0, MAX_CUSTOM_INSTRUCTIONS_LENGTH);
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
+}
+
+export function resetCustomInstructions() {
+  chatSettings.customInstructions = '';
   persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
 }
 
@@ -106,6 +117,7 @@ export function syncChatPersistence() {
     exposeToolsToAgent: chatSettings.exposeToolsToAgent,
     keepThinkingOpen: chatSettings.keepThinkingOpen,
     language: chatSettings.language,
+    customInstructions: chatSettings.customInstructions,
   });
 
   const session = getDisplayedChatSession();

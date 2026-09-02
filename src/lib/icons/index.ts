@@ -53,6 +53,9 @@ export {
   Sparkles,
   Loader,
   PlugZap,
+  FlaskConical,
+  ClipboardPaste,
+  ClipboardCopy,
 } from '@lucide/svelte';
 
 // Re-export types

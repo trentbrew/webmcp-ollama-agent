@@ -1,0 +1,29 @@
+
+> chrome-extension-sidepanel@1.0.0 test:e2e /Users/trentbrew/TURTLE/Projects/Extensions/WEBMCP/webmcp
+> playwright test
+
+[WebServer] 1:50:23 PM [vite-plugin-svelte] You are using Svelte 5.40.2 with vite-plugin-svelte@3. Active Svelte 5 support has moved to vite-plugin-svelte@4.
+[WebServer] 	To receive bug fixes and new features update your devDependencies to "@sveltejs/vite-plugin-svelte": "^4.0.0-next.6" and install.
+[WebServer] 	For framework integrations that depend on it, you might have to add an override:
+[WebServer] 	"overrides": {"@sveltejs/vite-plugin-svelte": "^4.0.0-next.6"}
+[WebServer] [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+Running 5 tests using 3 workers
+
+[WebServer] Browserslist: browsers data (caniuse-lite) is 11 months old. Please run:
+[WebServer]   npx update-browserslist-db@latest
+[WebServer]   Why you should do it regularly: https://github.com/browserslist/update-db#readme
+(node:94444) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:94443) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:94445) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 e2e/clarify-then-act.spec.ts:33:3 › clarify-then-act spawn_prop questionnaire › dock blocks interaction until submit (spawn clarify path) (1.1s)
+  ✓  1 e2e/questionnaire.spec.ts:11:3 › ask_user questionnaire › step-through one-way trip and submit structured answers (1.4s)
+  ✓  2 e2e/clarify-then-act.spec.ts:9:3 › clarify-then-act spawn_prop questionnaire › shows spawn_prop clarify dock before structured answers (1.3s)
+  ✓  4 e2e/questionnaire.spec.ts:33:3 › ask_user questionnaire › shows return date step for round-trip (352ms)
+  ✓  5 e2e/questionnaire.spec.ts:42:3 › ask_user questionnaire › blocks Next when outbound date is before today (290ms)
+
+  5 passed (6.1s)
+E2E:0

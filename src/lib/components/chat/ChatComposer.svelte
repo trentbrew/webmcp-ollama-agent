@@ -11,7 +11,7 @@
     X,
   } from '../../icons';
   import { formatFileSize } from '../../ai/messages';
-  import { isChatBusy, sendChatMessage } from '../../chat.svelte';
+  import { cancelChat, isChatBusy, sendChatMessage } from '../../chat.svelte';
   import {
     chatModelCatalog,
     chatSettings,
@@ -39,6 +39,7 @@
   } from '../../chat/sessions.svelte';
   import type { ResumableSession } from '../../chat/persistence';
   import BorderBeam from '../ui/BorderBeam.svelte';
+  import McpLogo from '../icons/McpLogo.svelte';
   import { browserContext } from '../../browser/context.svelte';
   import {
     buildAgentToolSummaries,
@@ -244,6 +245,10 @@
     pendingFiles = [];
     onSend?.();
     await sendChatMessage({ text: text || undefined, files });
+  }
+
+  function handleCancel() {
+    cancelChat();
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -531,13 +536,18 @@
         <div class="chat-composer__tools-pills">
           <button
             type="button"
-            class="semantic-pill semantic-pill--muted"
+            class="semantic-pill semantic-pill--muted chat-composer__tools-pill"
             class:semantic-pill--primary={chatSettings.exposeToolsToAgent}
             aria-haspopup="menu"
             aria-expanded={toolsMenuOpen}
             title={`${builtinTools.length} built-in tool${builtinTools.length === 1 ? '' : 's'}`}
             onclick={() => (toolsMenuOpen = !toolsMenuOpen)}
           >
+            <McpLogo
+              size={10}
+              variant="muted"
+              class="chat-composer__tools-pill-icon"
+            />
             {builtinTools.length} built-in
           </button>
           <button
@@ -647,18 +657,25 @@
       >
         <Paperclip size={14} />
       </button>
-      <button
-        type="submit"
-        class="chat-composer__send"
-        disabled={!canSend || busy}
-        aria-label="Send message"
-      >
-        {#if busy}
+      {#if busy}
+        <button
+          type="button"
+          class="chat-composer__send chat-composer__send--stop"
+          aria-label="Stop response"
+          onclick={handleCancel}
+        >
           <Square size={10} fill="currentColor" strokeWidth={0} />
-        {:else}
+        </button>
+      {:else}
+        <button
+          type="submit"
+          class="chat-composer__send"
+          disabled={!canSend}
+          aria-label="Send message"
+        >
           <ArrowUp size={12} />
-        {/if}
-      </button>
+        </button>
+      {/if}
     </div>
   </div>
 </form>
@@ -860,6 +877,15 @@
     display: inline-flex;
     align-items: center;
     gap: 0.3125rem;
+  }
+
+  .chat-composer__tools-pill {
+    gap: 0.25rem;
+  }
+
+  :global(.chat-composer__tools-pill-icon) {
+    flex-shrink: 0;
+    opacity: 0.85;
   }
 
   .chat-composer__tools {
@@ -1111,6 +1137,16 @@
     color: inherit;
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .chat-composer__send--stop {
+    background: oklch(var(--bc) / 0.16);
+    color: oklch(var(--bc) / 0.88);
+  }
+
+  .chat-composer__send--stop:hover {
+    background: oklch(var(--bc) / 0.24);
+    filter: none;
   }
 
   .chat-composer__scrim {

@@ -23,6 +23,7 @@ export type ChatSettings = {
   exposeToolsToAgent: boolean;
   keepThinkingOpen: boolean;
   language: ChatLanguage;
+  customInstructions: string;
 };
 
 export type PersistedTabChat = {
@@ -73,6 +74,7 @@ function defaultSettings(): ChatSettings {
     exposeToolsToAgent: true,
     keepThinkingOpen: true,
     language: DEFAULT_CHAT_LANGUAGE,
+    customInstructions: '',
   };
 }
 
@@ -84,6 +86,8 @@ function parseSettings(parsed: Partial<ChatSettings>): ChatSettings {
     exposeToolsToAgent: typeof parsed.exposeToolsToAgent === 'boolean' ? parsed.exposeToolsToAgent : true,
     keepThinkingOpen: typeof parsed.keepThinkingOpen === 'boolean' ? parsed.keepThinkingOpen : true,
     language: isChatLanguage(parsed.language) ? parsed.language : DEFAULT_CHAT_LANGUAGE,
+    customInstructions:
+      typeof parsed.customInstructions === 'string' ? parsed.customInstructions : '',
   };
 }
 
@@ -250,7 +254,15 @@ export function persistChat(
   keepThinkingOpen: boolean,
   language: ChatLanguage = DEFAULT_CHAT_LANGUAGE,
 ) {
-  persistChatSettings({ model, baseUrl, inference, exposeToolsToAgent, keepThinkingOpen, language });
+  persistChatSettings({
+    model,
+    baseUrl,
+    inference,
+    exposeToolsToAgent,
+    keepThinkingOpen,
+    language,
+    customInstructions: loadChatSettings().customInstructions,
+  });
 }
 
 /** @deprecated Use removeTabChat. */

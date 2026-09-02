@@ -9,9 +9,28 @@ import type {
 } from './protocol';
 
 const PORT_NAME = 'ollama-chat';
+/** Same-origin Vite dev proxy — see vite.config.ts `server.proxy['/ollama']`. */
+const DEV_OLLAMA_PROXY = '/ollama';
 
 function isExtensionRuntime() {
   return typeof chrome !== 'undefined' && Boolean(chrome.runtime?.id);
+}
+
+function isLocalOllamaHost(baseUrl: string) {
+  try {
+    const { hostname } = new URL(baseUrl);
+    return hostname === '127.0.0.1' || hostname === 'localhost';
+  } catch {
+    return false;
+  }
+}
+
+/** Map configured Ollama URL to a fetchable URL in the current runtime. */
+function resolveFetchBase(baseUrl: string) {
+  if (isExtensionRuntime() || !import.meta.env.DEV || !isLocalOllamaHost(baseUrl)) {
+    return trimBase(baseUrl);
+  }
+  return DEV_OLLAMA_PROXY;
 }
 
 export async function listOllamaModels(baseUrl = DEFAULT_OLLAMA_BASE_URL): Promise<ListModelsResponse> {
@@ -155,7 +174,7 @@ function streamViaBridge(
 
 async function fetchModelsDirect(baseUrl: string): Promise<ListModelsResponse> {
   try {
-    const response = await fetch(`${trimBase(baseUrl)}/api/tags`, {
+    const response = await fetch(`${resolveFetchBase(baseUrl)}/api/tags`, {
       method: 'GET',
       signal: AbortSignal.timeout(4000),
     });
@@ -195,7 +214,7 @@ async function streamDirect(
   let toolCalls: OllamaToolCall[] | undefined;
 
   try {
-    const response = await fetch(`${trimBase(options.baseUrl)}/api/chat`, {
+    const response = await fetch(`${resolveFetchBase(options.baseUrl)}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

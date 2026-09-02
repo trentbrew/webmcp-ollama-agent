@@ -256,11 +256,155 @@ export function inputHtmlAttrs(item: QuestionnaireItem): QuestionnaireInputAttrs
   return attrs;
 }
 
+function slugItemName(title: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+  return slug || 'answer';
+}
+
+function normalizeChoiceList(raw: unknown): QuestionnaireChoice[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  if (typeof raw[0] === 'string') {
+    return raw.map((entry) => ({ value: entry, label: entry }));
+  }
+  const choices: QuestionnaireChoice[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry == null) continue;
+    const choice = entry as QuestionnaireChoice;
+    if (typeof choice.value !== 'string' || typeof choice.label !== 'string') continue;
+    choices.push({
+      value: choice.value,
+      label: choice.label,
+      description: typeof choice.description === 'string' ? choice.description : undefined,
+      shortcut: typeof choice.shortcut === 'string' ? choice.shortcut : undefined,
+    });
+  }
+  return choices.length > 0 ? choices : undefined;
+}
+
+/** Coerce alternate model shapes (title/choices shorthand) into `{ items: [...] }`. */
+export function normalizeAskUserPayload(args: unknown): { items: unknown[] } | null {
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return null;
+  const record = args as Record<string, unknown>;
+
+  if (Array.isArray(record.items) && record.items.length > 0) {
+    return { items: record.items };
+  }
+
+  const prompt =
+    typeof record.prompt === 'string'
+      ? record.prompt
+      : typeof record.title === 'string'
+        ? record.title
+        : typeof record.question === 'string'
+          ? record.question
+          : null;
+  if (!prompt?.trim()) return null;
+
+  const name =
+    typeof record.name === 'string' && record.name.trim()
+      ? record.name.trim()
+      : slugItemName(prompt);
+  const choices = normalizeChoiceList(record.choices ?? record.options);
+  const hasInput = Boolean(
+    record.input && typeof record.input === 'object' && typeof (record.input as { label?: string }).label === 'string',
+  );
+
+  if (!choices && !hasInput) return null;
+
+  return {
+    items: [
+      {
+        name,
+        prompt: prompt.trim(),
+        description: typeof record.description === 'string' ? record.description : undefined,
+        required: record.required !== false,
+        multiple: record.multiple === true,
+        default: record.default,
+        validation: record.validation,
+        when: record.when,
+        choices,
+        input: hasInput ? record.input : undefined,
+      },
+    ],
+  };
+}
+
+/** Extract `ask_user({...})` payloads models sometimes emit as prose instead of tool_calls. */
+export function extractAskUserPayloadFromText(text: string): unknown | null {
+  const haystack = text;
+  let searchFrom = 0;
+
+  while (searchFrom < haystack.length) {
+    const markerIndex = haystack.indexOf('ask_user', searchFrom);
+    if (markerIndex < 0) break;
+
+    let cursor = markerIndex + 'ask_user'.length;
+    while (cursor < haystack.length && /\s/.test(haystack[cursor] ?? '')) cursor += 1;
+    if (haystack[cursor] !== '(') {
+      searchFrom = markerIndex + 1;
+      continue;
+    }
+    cursor += 1;
+    while (cursor < haystack.length && /\s/.test(haystack[cursor] ?? '')) cursor += 1;
+    if (haystack[cursor] !== '{') {
+      searchFrom = markerIndex + 1;
+      continue;
+    }
+
+    const start = cursor;
+    let depth = 0;
+    let end = -1;
+    for (let i = cursor; i < haystack.length; i += 1) {
+      const ch = haystack[i];
+      if (ch === '{') depth += 1;
+      else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+
+    if (end < 0) break;
+
+    const jsonText = haystack.slice(start, end + 1);
+    try {
+      return JSON.parse(jsonText) as unknown;
+    } catch {
+      searchFrom = markerIndex + 1;
+      continue;
+    }
+  }
+
+  return null;
+}
+
+/** Remove pseudo ask_user code from assistant text/reasoning after recovery. */
+export function stripAskUserPseudoCode(text: string): string {
+  let cleaned = text;
+  const fenced = new RegExp('```[\\w]*\\s*[\\s\\S]*?ask_user\\s*\\([\\s\\S]*?\\)[\\s\\S]*?```', 'gi');
+  cleaned = cleaned.replace(fenced, '').trim();
+  const inline = new RegExp(
+    String.raw`(?:await\s+)?ask_user\s*\(\s*\{[\s\S]*?\}\s*\)(?:\s*\.\w+)?(?:\s*===\s*[^;\n]+)?`,
+    'gi',
+  );
+  cleaned = cleaned.replace(inline, '').trim();
+  return cleaned;
+}
+
 export function parseAskUserArgs(args: unknown):
   | { ok: true; items: QuestionnaireItem[] }
   | { ok: false; error: string } {
-  const record = args as { items?: unknown };
-  if (!Array.isArray(record?.items) || record.items.length === 0) {
+  const normalized = normalizeAskUserPayload(args);
+  if (!normalized) {
+    return { ok: false, error: 'ask_user requires a non-empty "items" array.' };
+  }
+  const record = normalized;
+  if (!Array.isArray(record.items) || record.items.length === 0) {
     return { ok: false, error: 'ask_user requires a non-empty "items" array.' };
   }
 

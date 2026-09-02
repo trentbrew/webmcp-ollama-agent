@@ -4,13 +4,16 @@
     chatSettings,
     resetInferenceOption,
     resetInferenceOptions,
+    resetCustomInstructions,
     setChatLanguage,
+    setCustomInstructions,
     setInferenceOption,
     setKeepThinkingOpen,
   } from '../chat/settings.svelte';
   import {
     CHAT_LANGUAGE_OPTIONS,
     DEFAULT_INFERENCE_OPTIONS,
+    MAX_CUSTOM_INSTRUCTIONS_LENGTH,
     isChatLanguage,
     type InferenceOptions,
   } from '../ai/config';
@@ -112,6 +115,46 @@
           Controls the language Ollama uses for replies. Extension UI stays in
           English for now.
         </p>
+      </div>
+    </div>
+  </PageSection>
+
+  <PageSection
+    title="Agent"
+    description="Steer how the local agent behaves. Appended to the built-in system prompt."
+  >
+    <div class="space-y-1.5">
+      <div class="flex items-center justify-between gap-2">
+        <Label for="custom-instructions">Additional instructions</Label>
+        <span class="text-xs tabular-nums text-base-content/60">
+          {chatSettings.customInstructions
+            .length}/{MAX_CUSTOM_INSTRUCTIONS_LENGTH}
+        </span>
+      </div>
+      <textarea
+        id="custom-instructions"
+        class="flex min-h-24 w-full resize-y rounded border border-base-content/20 bg-base-100 px-2.5 py-2 text-xs leading-relaxed"
+        placeholder="e.g. Focus on game mechanics. Be terse. Don't suggest code unless asked."
+        maxlength={MAX_CUSTOM_INSTRUCTIONS_LENGTH}
+        value={chatSettings.customInstructions}
+        oninput={(event) =>
+          setCustomInstructions(
+            (event.currentTarget as HTMLTextAreaElement).value,
+          )}
+      ></textarea>
+      <div class="flex items-center justify-between gap-2">
+        <p class="shell-setting-hint">
+          Optional. Does not replace core tool or ask_user behavior.
+        </p>
+        {#if chatSettings.customInstructions.length > 0}
+          <Button
+            variant="outline"
+            size="sm"
+            onclick={() => resetCustomInstructions()}
+          >
+            Clear
+          </Button>
+        {/if}
       </div>
     </div>
   </PageSection>

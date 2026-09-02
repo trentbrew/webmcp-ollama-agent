@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { MessageCircleDashed, Radar } from '../../icons';
+  import { MessageCircleDashed } from '../../icons';
+  import McpLogo from '../icons/McpLogo.svelte';
   import { isChatBusy, sendChatMessage } from '../../chat.svelte';
   import OllamaOffline from './OllamaOffline.svelte';
   import { chatModelCatalog, chatSettings } from '../../chat/settings.svelte';
@@ -33,7 +34,7 @@
 {:else}
   <div class="chat-empty">
     {#if invokableCount > 0}
-      <Radar size={24} class="chat-empty__icon chat-empty__icon--active" />
+      <McpLogo size={24} class="chat-empty__icon chat-empty__icon--active" />
     {:else}
       <MessageCircleDashed size={24} class="chat-empty__icon" />
     {/if}
@@ -93,7 +94,6 @@
 
   :global(.chat-empty__icon--active) {
     opacity: 0.85;
-    color: oklch(var(--su));
   }
 
   .chat-empty__title {

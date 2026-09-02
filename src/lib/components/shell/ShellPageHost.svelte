@@ -8,6 +8,7 @@
   import TrellisPage from '../../pages/TrellisPage.svelte';
   import McpPage from '../../pages/McpPage.svelte';
   import TracesPage from '../../pages/TracesPage.svelte';
+  import EvalsPage from '../../pages/EvalsPage.svelte';
   import ComponentsDemo from '../../pages/ComponentsDemo.svelte';
 
   let { page }: { page: PageType } = $props();
@@ -35,6 +36,8 @@
       <McpPage />
     {:else if page === 'traces'}
       <TracesPage />
+    {:else if page === 'evals'}
+      <EvalsPage />
     {:else if page === 'components'}
       <ComponentsDemo />
     {/if}

@@ -44,6 +44,11 @@
         'Type / in the composer: /new starts a fresh conversation; /resume opens the session picker; /reset clears the current session; /model opens the model picker.',
     },
     {
+      question: 'What is the Evals tab for?',
+      answer:
+        'It grades a page\u2019s WebMCP tools against the model: write a prompt plus the call it should produce, run it a few times, and read the pass rate. Dry-run mode scores the call the model proposes without dispatching it, so a suite is safe against write tools. Cases import and export in Chrome\u2019s eval format.',
+    },
+    {
       question: 'How do I report a bug?',
       answer: 'Open an issue on the GitHub repository linked below.',
     },

@@ -6,6 +6,7 @@ export type PageType =
   | 'chat'
   | 'mcp'
   | 'traces'
+  | 'evals'
   | 'facts'
   | 'settings'
   | 'help'

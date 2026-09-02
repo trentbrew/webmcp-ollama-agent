@@ -2,10 +2,16 @@ import { buildChatSystemPrompt, MAX_TOOL_ITERATIONS } from './ai/config';
 import {
   createMessageMetadata,
   getMessageFiles,
+  getMessageReasoning,
   getMessageText,
   type ChatMessageMetadata,
 } from './ai/messages';
-import { parseAskUserArgs, type QuestionnaireAnswers } from './ai/questionnaire';
+import {
+  extractAskUserPayloadFromText,
+  parseAskUserArgs,
+  stripAskUserPseudoCode,
+  type QuestionnaireAnswers,
+} from './ai/questionnaire';
 import { streamOllamaChat } from './ai/ollama';
 import type { ChatFilePart, ChatQuestionnairePart, ChatStatus, OllamaChatMessage, OllamaToolCall, UIMessage } from './ai/protocol';
 import { chatSettings } from './chat/settings.svelte';
@@ -33,6 +39,11 @@ import { isBrowserTool, runBrowserTool } from './browser/tools';
 import { recordToolTraceInTrellis } from './trellis/audit';
 import { isTrellisTool, runTrellisTool } from './trellis/tools';
 import { appendLocalTrace, mcpState, runTool } from './webmcp/store.svelte';
+import {
+  CLARIFY_NUDGE_MESSAGE,
+  isPageWriteTool,
+  shouldInjectClarifyNudge,
+} from './webmcp/clarifyPolicy';
 import { BUILTIN_TOOL_NAMES, buildAgentTools, buildAgentToolSummaries, isBuiltinTool } from './webmcp/toOllamaTools';
 
 export {
@@ -91,7 +102,46 @@ export function getPendingQuestionnaire(): ChatQuestionnairePart | null {
 declare global {
   interface Window {
     __webmcpE2EAnswers?: QuestionnaireAnswers;
+    __webmcpE2EChatStatus?: () => ChatStatus;
+    __webmcpE2EQuestionnaireStatus?: (id: string) => ChatQuestionnairePart['status'] | null;
+    __webmcpE2EErrorToolResults?: () => number;
   }
+}
+
+/** Playwright helpers — read live chat session state from the e2e harness. */
+export function getChatStatusForE2E(): ChatStatus {
+  return getDisplayedChatSession()?.status ?? 'ready';
+}
+
+export function getQuestionnaireStatusForE2E(questionnaireId: string): ChatQuestionnairePart['status'] | null {
+  const session = getDisplayedChatSession();
+  if (!session) return null;
+  for (const message of session.messages) {
+    for (const part of message.parts) {
+      if (part.type === 'questionnaire' && part.id === questionnaireId) {
+        return part.status;
+      }
+    }
+  }
+  return null;
+}
+
+export function getErrorToolResultCountForE2E(): number {
+  const session = getDisplayedChatSession();
+  if (!session) return 0;
+  let count = 0;
+  for (const message of session.messages) {
+    for (const part of message.parts) {
+      if (part.type === 'tool-result' && part.error) count += 1;
+    }
+  }
+  return count;
+}
+
+function attachE2EChatHooks() {
+  window.__webmcpE2EChatStatus = getChatStatusForE2E;
+  window.__webmcpE2EQuestionnaireStatus = getQuestionnaireStatusForE2E;
+  window.__webmcpE2EErrorToolResults = getErrorToolResultCountForE2E;
 }
 
 /** Seeds chat state so Playwright can exercise QuestionnaireDock submit flow. */
@@ -122,6 +172,35 @@ export function primeQuestionnaireForE2E(part: ChatQuestionnairePart): void {
     },
     reject: () => {},
   });
+  attachE2EChatHooks();
+}
+
+/** Seeds streaming state so Playwright can exercise the composer stop button. */
+export function primeStreamingChatForE2E(): void {
+  const tabId = 1;
+  chatSessionState.activeTabId = tabId;
+  chatSessionState.detached = null;
+
+  const session = getChatForTab(tabId);
+  session.messages = [
+    {
+      id: 'e2e-user',
+      role: 'user',
+      parts: [{ type: 'text', text: 'Hello' }],
+      metadata: createMessageMetadata(),
+    },
+    {
+      id: 'e2e-assistant',
+      role: 'assistant',
+      parts: [{ type: 'text', text: 'Thinking…' }],
+      metadata: createMessageMetadata(),
+    },
+  ];
+  session.status = 'streaming';
+  session.error = null;
+  session.updatedAt = Date.now();
+  setAbortController(tabId, new AbortController());
+  attachE2EChatHooks();
 }
 
 export type SendMessageInput = {
@@ -201,7 +280,27 @@ export async function sendChatMessage(input: SendMessageInput) {
   session.updatedAt = Date.now();
   persistSession(session);
 
-  await runTurn(session, assistantMessage.id, requestAbort, 0);
+  await runTurn(session, assistantMessage.id, requestAbort, 0, 0);
+}
+
+/** Aborts the in-flight chat turn (streaming, tool loop, or questionnaire wait). */
+export function cancelChat() {
+  const session = getDisplayedChatSession();
+  if (!session || !isChatBusy()) return;
+
+  const key = sessionKey(session);
+
+  for (const [id, pending] of pendingQuestionnaires.entries()) {
+    if (pending.sessionKey !== key) continue;
+    markQuestionnaireAnswered(session, pending.assistantId, id, {}, 'skipped');
+    pendingQuestionnaires.delete(id);
+    pending.reject(new Error('Questionnaire cancelled.'));
+  }
+
+  getAbortController(key)?.abort();
+  session.status = 'ready';
+  session.updatedAt = Date.now();
+  persistSession(session);
 }
 
 async function runTurn(
@@ -209,6 +308,7 @@ async function runTurn(
   assistantId: string,
   requestAbort: AbortController,
   iteration: number,
+  consecutiveWriteErrors: number,
 ) {
   const tabId = sessionKey(session);
   const ollamaMessages = await toOllamaMessages(
@@ -252,6 +352,9 @@ async function runTurn(
   if (session.status === 'error') return;
 
   if (!toolCalls) {
+    const recovered = await tryRecoverAskUserFromAssistant(session, assistantId, requestAbort, iteration);
+    if (recovered) return;
+
     session.status = 'ready';
     session.updatedAt = Date.now();
     persistSession(session);
@@ -269,14 +372,33 @@ async function runTurn(
 
   stampToolCalls(session, assistantId, toolCalls);
 
+  let writeErrors = consecutiveWriteErrors;
+
   for (const call of toolCalls) {
+    if (requestAbort.signal.aborted) {
+      session.status = 'ready';
+      session.updatedAt = Date.now();
+      persistSession(session);
+      return;
+    }
     const args = call.function.arguments ?? {};
     let result: { ok: boolean; result?: unknown; error?: string };
 
     if (call.function.name === BUILTIN_TOOL_NAMES.askUser) {
       result = await runAskUserTool(session, assistantId, args, requestAbort.signal);
+      writeErrors = 0;
     } else {
       result = await runAgentTool(call.function.name, args);
+      if (isPageWriteTool(call.function.name, pageTools)) {
+        writeErrors = result.ok ? 0 : writeErrors + 1;
+      }
+    }
+
+    if (requestAbort.signal.aborted) {
+      session.status = 'ready';
+      session.updatedAt = Date.now();
+      persistSession(session);
+      return;
     }
 
     session.messages.push({
@@ -296,6 +418,24 @@ async function runTurn(
     });
   }
 
+  if (shouldInjectClarifyNudge(writeErrors)) {
+    session.messages.push({
+      id: crypto.randomUUID(),
+      role: 'tool',
+      parts: [
+        {
+          type: 'tool-result',
+          id: crypto.randomUUID(),
+          toolName: BUILTIN_TOOL_NAMES.askUser,
+          args: {},
+          result: CLARIFY_NUDGE_MESSAGE,
+        },
+      ],
+      metadata: createMessageMetadata(),
+    });
+    writeErrors = 0;
+  }
+
   const nextAssistant: UIMessage = {
     id: crypto.randomUUID(),
     role: 'assistant',
@@ -305,7 +445,88 @@ async function runTurn(
   session.messages.push(nextAssistant);
   session.updatedAt = Date.now();
   persistSession(session);
-  await runTurn(session, nextAssistant.id, requestAbort, iteration + 1);
+  await runTurn(session, nextAssistant.id, requestAbort, iteration + 1, writeErrors);
+}
+
+function getAssistantMessage(
+  session: TabChatSession | DetachedChatSession,
+  assistantId: string,
+): UIMessage | undefined {
+  return session.messages.find((entry) => entry.id === assistantId);
+}
+
+function stripAskUserFromAssistantParts(session: TabChatSession | DetachedChatSession, assistantId: string) {
+  const index = session.messages.findIndex((entry) => entry.id === assistantId);
+  if (index < 0) return;
+  const message = session.messages[index];
+  session.messages[index] = {
+    ...message,
+    parts: message.parts
+      .map((part) => {
+        if (part.type !== 'text' && part.type !== 'reasoning') return part;
+        const cleaned = stripAskUserPseudoCode(part.text);
+        return cleaned ? { ...part, text: cleaned } : null;
+      })
+      .filter((part): part is NonNullable<typeof part> => part !== null),
+  };
+}
+
+async function tryRecoverAskUserFromAssistant(
+  session: TabChatSession | DetachedChatSession,
+  assistantId: string,
+  requestAbort: AbortController,
+  iteration: number,
+): Promise<boolean> {
+  const message = getAssistantMessage(session, assistantId);
+  if (!message) return false;
+
+  const combined = `${getMessageReasoning(message)}\n${getMessageText(message)}`;
+  const payload = extractAskUserPayloadFromText(combined);
+  if (!payload) return false;
+
+  const parsed = parseAskUserArgs(payload);
+  if (!parsed.ok) return false;
+
+  stripAskUserFromAssistantParts(session, assistantId);
+  stampToolCalls(session, assistantId, [
+    {
+      function: {
+        name: BUILTIN_TOOL_NAMES.askUser,
+        arguments: payload as Record<string, unknown>,
+      },
+    },
+  ]);
+
+  const result = await runAskUserTool(session, assistantId, payload, requestAbort.signal);
+  session.messages.push({
+    id: crypto.randomUUID(),
+    role: 'tool',
+    parts: [
+      {
+        type: 'tool-result',
+        id: crypto.randomUUID(),
+        toolName: BUILTIN_TOOL_NAMES.askUser,
+        args: payload,
+        result: result.ok ? result.result : undefined,
+        error: result.ok ? undefined : result.error,
+      },
+    ],
+    metadata: createMessageMetadata(),
+  });
+
+  if (requestAbort.signal.aborted || session.status === 'error') return true;
+
+  const nextAssistant: UIMessage = {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    parts: [],
+    metadata: createMessageMetadata(),
+  };
+  session.messages.push(nextAssistant);
+  session.updatedAt = Date.now();
+  persistSession(session);
+  await runTurn(session, nextAssistant.id, requestAbort, iteration + 1, 0);
+  return true;
 }
 
 async function runAskUserTool(
@@ -556,8 +777,15 @@ function stampAssistantCompleted(session: TabChatSession | DetachedChatSession, 
 }
 
 async function toOllamaMessages(messages: UIMessage[]): Promise<OllamaChatMessage[]> {
+  const pageTools = mcpState.tabId != null ? (mcpState.state?.tools ?? []) : [];
+  const agentTools = chatSettings.exposeToolsToAgent ? buildAgentTools(pageTools) : undefined;
+  const toolNames = agentTools?.map((tool) => tool.function.name);
+
   const converted: OllamaChatMessage[] = [
-    { role: 'system', content: buildChatSystemPrompt(chatSettings.language) },
+    { role: 'system', content: buildChatSystemPrompt(chatSettings.language, {
+      toolNames,
+      customInstructions: chatSettings.customInstructions,
+    }) },
   ];
 
   for (const message of messages) {

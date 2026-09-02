@@ -34,8 +34,9 @@ div[data-theme] {
 	--pill-primary-border: oklch(var(--p) / 0.5);
 	--pill-primary-bg: oklch(var(--p) / 0.12);
 
-	/* Success — discovered WebMCP tools, tool-linked suggestions */
-	--pill-success-fg: oklch(var(--suc, var(--su)));
+	/* Success — discovered WebMCP tools, tool-linked suggestions.
+	   Use --su (hue) not --suc (contrast for solid fills) on tinted dark surfaces. */
+	--pill-success-fg: oklch(var(--su));
 	--pill-success-border: oklch(var(--su) / 0.55);
 	--pill-success-bg: oklch(var(--su) / 0.14);
 	--pill-success-border-hover: oklch(var(--su) / 0.7);

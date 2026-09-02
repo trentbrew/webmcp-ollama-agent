@@ -1,13 +1,14 @@
 import type { Component } from 'svelte';
 import type { PageType } from '../../stores/navigation';
 import type { PageVariant } from './types';
+import McpLogo from '../icons/McpLogo.svelte';
 import {
   HelpCircle,
   Home,
   Layers,
-  Radar,
   Settings,
   Activity,
+  FlaskConical,
 } from '../../icons';
 
 export interface PageShellMeta {
@@ -46,13 +47,19 @@ export const PAGE_SHELL_CONFIG: Partial<Record<PageType, PageShellMeta>> = {
     variant: 'fullBleed',
     title: 'MCP',
     description: 'WebMCP tools on the active tab',
-    icon: Radar,
+    icon: McpLogo,
   },
   traces: {
     variant: 'fullBleed',
     title: 'Traces',
     description: 'Tool call waterfall and console',
     icon: Activity,
+  },
+  evals: {
+    variant: 'fullBleed',
+    title: 'Evals',
+    description: 'Grade page tools against the model',
+    icon: FlaskConical,
   },
   components: {
     variant: 'settings',

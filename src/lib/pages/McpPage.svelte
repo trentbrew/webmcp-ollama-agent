@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Radar } from '../icons';
+  import McpLogo from '../components/icons/McpLogo.svelte';
   import ToolCard from '../components/mcp/ToolCard.svelte';
   import { initMcpTracking, mcpState } from '../webmcp/store.svelte';
 
@@ -10,14 +10,23 @@
 
   const detected = $derived(mcpState.state?.detected ?? false);
   const tools = $derived(mcpState.state?.tools ?? []);
-  const invokableCount = $derived(tools.filter((tool) => tool.invokable).length);
+  const invokableCount = $derived(
+    tools.filter((tool) => tool.invokable).length,
+  );
 </script>
 
 <div class="mcp-page">
   <div class="mcp-page__status">
-    <span class="mcp-page__dot" class:is-active={detected} class:is-inactive={!detected}></span>
+    <span
+      class="mcp-page__dot"
+      class:is-active={detected}
+      class:is-inactive={!detected}
+    ></span>
     {#if detected}
-      <span>WebMCP active — {tools.length} tool{tools.length === 1 ? '' : 's'} ({invokableCount} invokable)</span>
+      <span
+        >WebMCP active — {tools.length} tool{tools.length === 1 ? '' : 's'} ({invokableCount}
+        invokable)</span
+      >
     {:else}
       <span>WebMCP not detected on this tab</span>
     {/if}
@@ -26,8 +35,10 @@
   <div class="mcp-page__body">
     {#if tools.length === 0}
       <div class="mcp-page__empty">
-        <Radar size={26} class="mcp-page__empty-icon" />
-        <p class="mcp-page__empty-title">{detected ? 'No tools registered yet' : 'No WebMCP page detected'}</p>
+        <McpLogo size={26} class="mcp-page__empty-icon" />
+        <p class="mcp-page__empty-title">
+          {detected ? 'No tools registered yet' : 'No WebMCP page detected'}
+        </p>
         <p class="mcp-page__empty-subtitle">
           {detected
             ? 'This page exposes document.modelContext but has not registered any tools.'

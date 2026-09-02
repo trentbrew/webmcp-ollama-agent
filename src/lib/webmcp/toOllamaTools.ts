@@ -1,6 +1,7 @@
 import type { OllamaTool } from '../ai/protocol';
 import { BROWSER_TOOLS, isBrowserTool } from '../browser/tools';
 import { isTrellisTool, TRELLIS_TOOLS } from '../trellis/tools';
+import { appendClarifyPreamble } from './clarifyPolicy';
 import type { WebMcpToolSummary } from './protocol';
 
 /** Names reserved for extension-local tools (handled in chat.svelte.ts, never routed to the page). */
@@ -170,11 +171,12 @@ function isReadOnlyLocalTool(name: string): boolean {
 }
 
 function toolToOllama(tool: WebMcpToolSummary): OllamaTool {
+  const description = appendClarifyPreamble(tool.description, tool.annotations?.readOnlyHint);
   return {
     type: 'function',
     function: {
       name: tool.name,
-      description: tool.description,
+      description,
       parameters: tool.inputSchema ?? { type: 'object', properties: {} },
     },
   };
@@ -183,4 +185,13 @@ function toolToOllama(tool: WebMcpToolSummary): OllamaTool {
 export function buildAgentTools(pageTools: WebMcpToolSummary[]): OllamaTool[] {
   const invokable = buildDiscoveredToolSummaries(pageTools).map(toolToOllama);
   return [...invokable, ...BUILTIN_TOOLS, ...BROWSER_TOOLS, ...TRELLIS_TOOLS];
+}
+
+/**
+ * Page tools only, with the same description treatment the agent sees. Evals
+ * grade the page's own tool surface, so the extension's built-ins are left out
+ * -- they would otherwise compete for selection and pollute the failure signal.
+ */
+export function buildPageOnlyTools(pageTools: WebMcpToolSummary[]): OllamaTool[] {
+  return buildDiscoveredToolSummaries(pageTools).map(toolToOllama);
 }

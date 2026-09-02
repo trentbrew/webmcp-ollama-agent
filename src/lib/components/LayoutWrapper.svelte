@@ -1,40 +1,108 @@
 <script lang="ts">
   import { HorizonLayout } from 'horizon-layout';
-  import type { LayoutConfig, NodeConfig, TabGroupConfig, Id } from 'horizon-layout';
+  import type {
+    LayoutConfig,
+    NodeConfig,
+    SplitConfig,
+    TabGroupConfig,
+    Id,
+  } from 'horizon-layout';
   import { SvelteMap } from 'svelte/reactivity';
   import '../styles/horizon-layout.css';
 
   import { currentPage, type PageType } from '../stores/navigation';
-  import { Activity, HelpCircle, MessageCircle, Radar, Settings } from '../icons';
+  import { get } from 'svelte/store';
+  import {
+    Activity,
+    FlaskConical,
+    HelpCircle,
+    MessageCircle,
+    Settings,
+  } from '../icons';
+  import McpLogo from './icons/McpLogo.svelte';
 
   import ChatPage from '../pages/ChatPage.svelte';
   import { ShellPageHost } from './shell';
 
-  const TAB_ORDER: PageType[] = ['chat', 'mcp', 'traces', 'settings', 'help'];
+  const TAB_ORDER: PageType[] = [
+    'chat',
+    'mcp',
+    'traces',
+    'evals',
+    'settings',
+    'help',
+  ];
+  const SECONDARY_TABS = [
+    'mcp',
+    'traces',
+    'evals',
+    'settings',
+    'help',
+  ] as const satisfies readonly PageType[];
+
+  /** Side panel width at which chat pins left and tools/settings stack right. */
+  const WIDE_BREAKPOINT_PX = 560;
+  const DEFAULT_SPLIT = 0.44;
 
   const pageTitles: Record<string, string> = {
     chat: 'Chat',
     mcp: 'MCP',
     traces: 'Traces',
-    settings: 'Settings',
-    help: 'Help',
+    evals: 'Evals',
+    settings: '',
+    help: '',
   };
 
-  const SHELL_PAGES = new Set<PageType>(['mcp', 'traces', 'settings', 'help']);
-
-  const views = new SvelteMap<Id, { title: string; snippet: any; tabControls?: any[] }>([
-    ['chat', { title: pageTitles.chat, snippet: chatSnippet, tabControls: [tabIcon] }],
-    ['mcp', { title: pageTitles.mcp, snippet: mcpSnippet, tabControls: [tabIcon] }],
-    ['traces', { title: pageTitles.traces, snippet: tracesSnippet, tabControls: [tabIcon] }],
-    ['settings', { title: pageTitles.settings, snippet: settingsSnippet, tabControls: [tabIcon] }],
-    ['help', { title: pageTitles.help, snippet: helpSnippet, tabControls: [tabIcon] }],
+  const views = new SvelteMap<
+    Id,
+    { title: string; snippet: any; tabControls?: any[] }
+  >([
+    [
+      'chat',
+      { title: pageTitles.chat, snippet: chatSnippet, tabControls: [tabIcon] },
+    ],
+    [
+      'mcp',
+      { title: pageTitles.mcp, snippet: mcpSnippet, tabControls: [tabIcon] },
+    ],
+    [
+      'traces',
+      {
+        title: pageTitles.traces,
+        snippet: tracesSnippet,
+        tabControls: [tabIcon],
+      },
+    ],
+    [
+      'evals',
+      {
+        title: pageTitles.evals,
+        snippet: evalsSnippet,
+        tabControls: [tabIcon],
+      },
+    ],
+    [
+      'settings',
+      {
+        title: pageTitles.settings,
+        snippet: settingsSnippet,
+        tabControls: [tabIcon],
+      },
+    ],
+    [
+      'help',
+      { title: pageTitles.help, snippet: helpSnippet, tabControls: [tabIcon] },
+    ],
   ]);
 
+  let layoutEl: HTMLDivElement | undefined = $state();
+  let isWide = $state(false);
+  let splitPoint = $state(DEFAULT_SPLIT);
+  let lastSecondaryPage = $state<PageType>('mcp');
+  let wasWide = false;
+
   let config = $state<LayoutConfig>({
-    root: {
-      tabs: TAB_ORDER as [Id, ...Id[]],
-      activeTabIndex: Math.max(0, TAB_ORDER.indexOf($currentPage)),
-    },
+    root: buildNarrowRoot(get(currentPage)),
   });
 
   let lastSyncedPage: PageType = $currentPage;
@@ -43,16 +111,73 @@
     return !!node && 'tabs' in node;
   }
 
-  function findTabGroupWith(node: NodeConfig | undefined, pageId: Id): TabGroupConfig | undefined {
+  function isSplit(node: NodeConfig | undefined): node is SplitConfig {
+    return !!node && 'direction' in node;
+  }
+
+  function buildNarrowRoot(page: PageType): TabGroupConfig {
+    return {
+      tabs: TAB_ORDER as [Id, ...Id[]],
+      activeTabIndex: Math.max(0, TAB_ORDER.indexOf(page)),
+    };
+  }
+
+  function buildWideRoot(secondaryPage: PageType, split: number): SplitConfig {
+    const idx = SECONDARY_TABS.indexOf(
+      secondaryPage as (typeof SECONDARY_TABS)[number],
+    );
+    return {
+      direction: 'horizontal',
+      views: [
+        { tabs: ['chat'], activeTabIndex: 0 },
+        {
+          tabs: SECONDARY_TABS as unknown as [Id, ...Id[]],
+          activeTabIndex: idx >= 0 ? idx : 0,
+        },
+      ],
+      splitPoints: [split],
+    };
+  }
+
+  function findTabGroupWith(
+    node: NodeConfig | undefined,
+    pageId: Id,
+  ): TabGroupConfig | undefined {
     if (!node) return undefined;
     if (isTabGroup(node)) {
       return node.tabs.includes(pageId) ? node : undefined;
     }
-    for (const child of node.views) {
-      const found = findTabGroupWith(child, pageId);
-      if (found) return found;
+    if (isSplit(node)) {
+      for (const child of node.views) {
+        const found = findTabGroupWith(child, pageId);
+        if (found) return found;
+      }
     }
     return undefined;
+  }
+
+  function findSecondaryTabGroup(
+    node: NodeConfig | undefined,
+  ): TabGroupConfig | undefined {
+    if (!node) return undefined;
+    if (isTabGroup(node)) {
+      return node.tabs.includes('mcp') ? node : undefined;
+    }
+    if (isSplit(node)) {
+      for (const child of node.views) {
+        const found = findSecondaryTabGroup(child);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  }
+
+  function secondaryActivePage(
+    node: NodeConfig | undefined,
+  ): PageType | undefined {
+    const group = findSecondaryTabGroup(node);
+    if (!group) return undefined;
+    return group.tabs[group.activeTabIndex] as PageType | undefined;
   }
 
   function activeViewId(node: NodeConfig | undefined): PageType | undefined {
@@ -60,27 +185,89 @@
     if (isTabGroup(node)) {
       return node.tabs[node.activeTabIndex] as PageType | undefined;
     }
-    for (const child of node.views) {
-      const id = activeViewId(child);
-      if (id) return id;
+    if (isSplit(node)) {
+      for (const child of node.views) {
+        const id = activeViewId(child);
+        if (id) return id;
+      }
     }
     return undefined;
   }
 
   $effect(() => {
+    const el = layoutEl;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      isWide = entry.contentRect.width >= WIDE_BREAKPOINT_PX;
+    });
+    observer.observe(el);
+    isWide = el.clientWidth >= WIDE_BREAKPOINT_PX;
+    return () => observer.disconnect();
+  });
+
+  $effect(() => {
+    if (isWide === wasWide) return;
+    wasWide = isWide;
+    const page = $currentPage;
+
+    if (isWide) {
+      const secondary =
+        page === 'chat'
+          ? lastSecondaryPage
+          : SECONDARY_TABS.includes(page as (typeof SECONDARY_TABS)[number])
+            ? page
+            : lastSecondaryPage;
+      if (page !== 'chat') lastSecondaryPage = page;
+      config.root = buildWideRoot(secondary, splitPoint);
+    } else {
+      config.root = buildNarrowRoot(page);
+    }
+    lastSyncedPage = page;
+  });
+
+  $effect(() => {
+    if (isWide && isSplit(config.root)) {
+      splitPoint = config.root.splitPoints[0] ?? splitPoint;
+    }
+  });
+
+  $effect(() => {
     const page = $currentPage;
     if (page === lastSyncedPage) return;
-    const group = findTabGroupWith(config.root, page);
-    if (group) {
-      const idx = group.tabs.indexOf(page);
-      if (idx !== -1 && group.activeTabIndex !== idx) {
-        group.activeTabIndex = idx;
+
+    if (isWide) {
+      if (page !== 'chat') {
+        lastSecondaryPage = page;
+        const group = findSecondaryTabGroup(config.root);
+        if (group) {
+          const idx = group.tabs.indexOf(page);
+          if (idx !== -1 && group.activeTabIndex !== idx) {
+            group.activeTabIndex = idx;
+          }
+        }
+      }
+    } else {
+      const group = findTabGroupWith(config.root, page);
+      if (group) {
+        const idx = group.tabs.indexOf(page);
+        if (idx !== -1 && group.activeTabIndex !== idx) {
+          group.activeTabIndex = idx;
+        }
       }
     }
     lastSyncedPage = page;
   });
 
   $effect(() => {
+    if (isWide) {
+      const secondary = secondaryActivePage(config.root);
+      if (secondary && secondary !== lastSyncedPage) {
+        lastSyncedPage = secondary;
+        currentPage.set(secondary);
+      }
+      return;
+    }
+
     const active = activeViewId(config.root);
     if (active && active !== lastSyncedPage) {
       lastSyncedPage = active;
@@ -92,8 +279,9 @@
 {#snippet tabIcon(id: Id)}
   <span class="pane-tab-icon">
     {#if id === 'chat'}<MessageCircle size={14} />
-    {:else if id === 'mcp'}<Radar size={14} />
+    {:else if id === 'mcp'}<McpLogo size={14} variant="muted" />
     {:else if id === 'traces'}<Activity size={14} />
+    {:else if id === 'evals'}<FlaskConical size={14} />
     {:else if id === 'settings'}<Settings size={14} />
     {:else if id === 'help'}<HelpCircle size={14} />
     {/if}
@@ -116,6 +304,10 @@
   {@render shellSnippet('traces')}
 {/snippet}
 
+{#snippet evalsSnippet()}
+  {@render shellSnippet('evals')}
+{/snippet}
+
 {#snippet settingsSnippet()}
   {@render shellSnippet('settings')}
 {/snippet}
@@ -124,7 +316,11 @@
   {@render shellSnippet('help')}
 {/snippet}
 
-<div class="layout-wrapper">
+<div
+  class="layout-wrapper"
+  class:layout-wrapper--wide={isWide}
+  bind:this={layoutEl}
+>
   <HorizonLayout bind:config {views} />
 </div>
 
@@ -157,5 +353,25 @@
 
   :global(.horizon-layout-tabgroup__tab--active) .pane-tab-icon {
     opacity: 1;
+  }
+
+  :global(.horizon-layout-tabgroup__tab-title:empty) {
+    display: none;
+  }
+
+  :global(
+      .horizon-layout-tabgroup__tab:has(
+          .horizon-layout-tabgroup__tab-title:empty
+        )
+    ) {
+    flex: 0 0 2.25rem;
+  }
+
+  /* Wide: chat is always visible — hide its redundant single-tab bar. */
+  .layout-wrapper--wide
+    :global(
+      .horizon-layout-split__pane:first-child .horizon-layout-tabgroup__tab-bar
+    ) {
+    display: none;
   }
 </style>

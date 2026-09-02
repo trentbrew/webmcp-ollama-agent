@@ -244,7 +244,15 @@ function stringifyArg(value: unknown): string {
   }
 }
 
+/** Analytics / privacy scripts often log benign "exclusion rule" messages as errors. */
+function isBenignConsoleNoise(args: unknown[]): boolean {
+  const text = args.map(stringifyArg).join(' ').trim();
+  if (!text) return true;
+  return /^Ignoring Event: exclusion rule$/i.test(text);
+}
+
 function reportConsole(level: 'log' | 'info' | 'warn' | 'error' | 'debug' | 'exception', args: unknown[]) {
+  if (isBenignConsoleNoise(args)) return;
   post({ type: 'console-entry', level, args: args.map(stringifyArg), timestamp: Date.now() });
 }
 
