@@ -6,7 +6,10 @@
     filterAnswersForSubmit,
     formatAnswersSummary,
     getVisibleItems,
+    inputHtmlAttrs,
     isItemAnswered,
+    seedAnswersFromDefaults,
+    validateItemValue,
     validateQuestionnaire,
     type QuestionnaireAnswers,
     type QuestionnaireItem,
@@ -27,12 +30,20 @@
   const readOnly = $derived(disabled || answered);
 
   let step = $state(0);
-  let answers = $state<QuestionnaireAnswers>({ ...(part.answers ?? {}) });
+  let answers = $state<QuestionnaireAnswers>({});
+  let seededQuestionnaireId = $state<string | null>(null);
   let error = $state<string | null>(null);
   let submitting = $state(false);
 
+  $effect(() => {
+    if (seededQuestionnaireId === part.id) return;
+    answers = seedAnswersFromDefaults(items, { ...(part.answers ?? {}) });
+    seededQuestionnaireId = part.id;
+  });
+
   const visibleItems = $derived(getVisibleItems(items, answers));
   const current = $derived(visibleItems[step] ?? visibleItems[0]);
+  const inputAttrs = $derived(current ? inputHtmlAttrs(current) : {});
   const progressLabel = $derived(
     visibleItems.length > 0
       ? `Question ${step + 1} of ${visibleItems.length}`
@@ -93,12 +104,25 @@
     goForward(true);
   }
 
+  function validateCurrentStep(): boolean {
+    if (!current) return false;
+    if (current.required && !isItemAnswered(current, answers)) {
+      error = 'Choose an answer to continue.';
+      return false;
+    }
+    if (isItemAnswered(current, answers)) {
+      const valueCheck = validateItemValue(current, answers[current.name]);
+      if (!valueCheck.ok) {
+        error = valueCheck.error;
+        return false;
+      }
+    }
+    return true;
+  }
+
   function goForward(skipped = false) {
     if (!current) return;
-    if (!skipped && current.required && !isItemAnswered(current, answers)) {
-      error = 'Choose an answer to continue.';
-      return;
-    }
+    if (!skipped && !validateCurrentStep()) return;
     if (step < visibleItems.length - 1) {
       step += 1;
       error = null;
@@ -196,7 +220,11 @@
             class="questionnaire__input"
             type={inputTypeFor(current)}
             inputmode={current.input.inputType === 'number' ? 'numeric' : undefined}
-            min={current.input.inputType === 'number' ? '1' : undefined}
+            min={inputAttrs.min !== undefined ? String(inputAttrs.min) : undefined}
+            max={inputAttrs.max !== undefined ? String(inputAttrs.max) : undefined}
+            minlength={inputAttrs.minlength}
+            maxlength={inputAttrs.maxlength}
+            pattern={inputAttrs.pattern}
             value={typeof answers[current.name] === 'string'
               ? (answers[current.name] as string)
               : ''}

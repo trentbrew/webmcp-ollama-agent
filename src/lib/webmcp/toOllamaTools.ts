@@ -43,7 +43,7 @@ const BUILTIN_TOOLS: OllamaTool[] = [
     function: {
       name: BUILTIN_TOOL_NAMES.askUser,
       description:
-        'Present a structured multi-step questionnaire to the user and wait for their answers. Use when you need specific choices or values instead of guessing from free text. Returns a JSON object keyed by item name.',
+        'Present a structured multi-step questionnaire to the user and wait for their answers. Infer values from the user message first; pass inferred values as default on items so the user confirms or edits. Only ask for genuinely ambiguous fields. Use validation for dates and numbers. Returns a JSON object keyed by item name.',
       parameters: {
         type: 'object',
         required: ['items'],
@@ -60,6 +60,29 @@ const BUILTIN_TOOLS: OllamaTool[] = [
                 description: { type: 'string', description: 'Optional helper text under the prompt.' },
                 required: { type: 'boolean', description: 'Whether the user must answer (default true).' },
                 multiple: { type: 'boolean', description: 'Allow selecting more than one choice.' },
+                default: {
+                  oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+                  description:
+                    'Pre-filled answer (string, or string array when multiple is true). User can edit before submitting.',
+                },
+                validation: {
+                  type: 'object',
+                  description:
+                    'Declarative constraints enforced on Next/Submit. Date inputs default minDate to today when omitted.',
+                  properties: {
+                    min: { type: 'number', description: 'Minimum numeric value.' },
+                    max: { type: 'number', description: 'Maximum numeric value.' },
+                    minLength: { type: 'number', description: 'Minimum text length.' },
+                    maxLength: { type: 'number', description: 'Maximum text length.' },
+                    pattern: { type: 'string', description: 'Regex pattern (no flags).' },
+                    minDate: {
+                      type: 'string',
+                      description: 'Earliest YYYY-MM-DD date, or literal "today".',
+                    },
+                    maxDate: { type: 'string', description: 'Latest YYYY-MM-DD date.' },
+                    message: { type: 'string', description: 'Custom error message when validation fails.' },
+                  },
+                },
                 choices: {
                   type: 'array',
                   description:

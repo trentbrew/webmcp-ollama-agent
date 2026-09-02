@@ -23,11 +23,13 @@ const part: ChatQuestionnairePart = {
       prompt: 'What is the outbound date?',
       required: true,
       input: { label: 'YYYY-MM-DD', placeholder: '2025-10-20', inputType: 'date' },
+      validation: { message: 'Departure must be today or later.' },
     },
     {
       name: 'inboundDate',
       prompt: 'What is the inbound/return date?',
       required: true,
+      when: { tripType: 'round-trip' },
       input: { label: 'YYYY-MM-DD', placeholder: '2025-10-27', inputType: 'date' },
     },
     {

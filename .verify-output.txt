@@ -112,3 +112,4 @@ pnpm test: 0
 npm run build: SKIPPED
 trellis issue check: 0
 curl health: 7
+EXIT:1
