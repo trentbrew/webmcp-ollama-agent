@@ -22,16 +22,25 @@
   }: Props = $props();
 </script>
 
-<header class={cn('page-shell__header shrink-0 border-b border-base-content/10', className)}>
-  <div class="flex items-start justify-between gap-2 px-3 py-2.5 min-h-[var(--shell-header-height)]">
+<header
+  class={cn(
+    'page-shell__header shrink-0 border-b border-base-content/10',
+    className,
+  )}
+>
+  <div
+    class="flex items-start justify-between gap-2 px-3 py-2.5 min-h-[var(--shell-header-height)]"
+  >
     <div class="flex items-start gap-2 min-w-0">
-      {#if icon}
+      <!-- {#if icon}
         <Icon {icon} size={18} class="text-primary shrink-0 mt-0.5" />
-      {/if}
+      {/if} -->
       <div class="min-w-0">
         <h1 class="text-base font-semibold tracking-tight truncate">{title}</h1>
         {#if description}
-          <p class="text-xs text-base-content/60 mt-0.5 leading-snug">{description}</p>
+          <p class="text-xs text-base-content/60 mt-0.5 leading-snug">
+            {description}
+          </p>
         {/if}
       </div>
     </div>

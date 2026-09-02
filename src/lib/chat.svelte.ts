@@ -1,4 +1,4 @@
-import { CHAT_SYSTEM_PROMPT, MAX_TOOL_ITERATIONS } from './ai/config';
+import { buildChatSystemPrompt, MAX_TOOL_ITERATIONS } from './ai/config';
 import {
   createMessageMetadata,
   getMessageFiles,
@@ -556,7 +556,9 @@ function stampAssistantCompleted(session: TabChatSession | DetachedChatSession, 
 }
 
 async function toOllamaMessages(messages: UIMessage[]): Promise<OllamaChatMessage[]> {
-  const converted: OllamaChatMessage[] = [{ role: 'system', content: CHAT_SYSTEM_PROMPT }];
+  const converted: OllamaChatMessage[] = [
+    { role: 'system', content: buildChatSystemPrompt(chatSettings.language) },
+  ];
 
   for (const message of messages) {
     if (message.role === 'system') continue;

@@ -29,17 +29,55 @@ if ((window as unknown as Record<string, boolean>)[bridgeFlag]) {
 function install() {
 
 let port: chrome.runtime.Port | undefined;
+let retired = false;
+
+// A reload, update, or disable orphans this content script: the port dies and every
+// chrome.* call starts throwing -- "Extension context invalidated", or a TypeError once
+// chrome.runtime itself is gone. Uncaught inside the disconnect retry, that spams the
+// console of the very page the panel is meant to be inspecting, once per open tab per
+// reload. An SW restart looks identical from the port's side, so tell them apart by
+// probing chrome.runtime: it stays live across an SW restart and vanishes with the
+// extension. When it's gone, retire the orphan quietly -- the newly injected bridge
+// takes over, and there is nothing left for this one to relay to.
+function extensionAlive() {
+  return Boolean(chrome.runtime?.id);
+}
+
+function retire() {
+  if (retired) return;
+  retired = true;
+  port = undefined;
+  window.removeEventListener('message', handlePageMessage);
+}
 
 function connect() {
-  port = chrome.runtime.connect({ name: WEBMCP_TAB_PORT });
+  if (retired) return;
+  if (!extensionAlive()) {
+    retire();
+    return;
+  }
+
+  try {
+    port = chrome.runtime.connect({ name: WEBMCP_TAB_PORT });
+  } catch {
+    // Context died between the probe and the call.
+    retire();
+    return;
+  }
 
   port.onMessage.addListener(handleBackgroundMessage);
   port.onDisconnect.addListener(() => {
     port = undefined;
+    if (!extensionAlive()) {
+      // Not an idle SW teardown -- the extension itself is gone.
+      retire();
+      return;
+    }
     // Reconnect on the next tick; the SW will wake and re-register onConnect.
     setTimeout(() => {
-      if (port) return;
+      if (port || retired) return;
       connect();
+      if (retired) return;
       // Ask the page (MAIN world, state still alive) to rebroadcast its tools so
       // the freshly-woken background repopulates its tab state and badge.
       window.postMessage({ source: WEBMCP_BRIDGE_SOURCE, type: 'list-tools', requestId: 'reconnect' }, '*');
@@ -48,15 +86,18 @@ function connect() {
 }
 
 function send(message: BridgeToBackground) {
+  if (retired) return;
   try {
     port?.postMessage(message);
   } catch {
     // Background/service worker not reachable (e.g. mid-restart) -- drop silently,
-    // the reconnect handler will resync once the SW is back.
+    // the reconnect handler will resync once the SW is back. If the extension itself
+    // is gone, stop relaying into the void.
+    if (!extensionAlive()) retire();
   }
 }
 
-window.addEventListener('message', (event) => {
+function handlePageMessage(event: MessageEvent) {
   if (event.source !== window) return;
   const data = event.data as PageResponse | undefined;
   if (!data || data.source !== WEBMCP_PAGE_SOURCE) return;
@@ -81,7 +122,9 @@ window.addEventListener('message', (event) => {
   if (data.type === 'console-entry') {
     send({ type: 'console-entry', level: data.level, args: data.args, timestamp: data.timestamp });
   }
-});
+}
+
+window.addEventListener('message', handlePageMessage);
 
 function handleBackgroundMessage(message: BackgroundToBridge) {
   if (message.type === 'list-tools') {

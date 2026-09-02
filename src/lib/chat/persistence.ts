@@ -1,4 +1,12 @@
-import { DEFAULT_INFERENCE_OPTIONS, DEFAULT_OLLAMA_BASE_URL, DEFAULT_OLLAMA_MODEL, type InferenceOptions } from '../ai/config';
+import {
+  DEFAULT_CHAT_LANGUAGE,
+  DEFAULT_INFERENCE_OPTIONS,
+  DEFAULT_OLLAMA_BASE_URL,
+  DEFAULT_OLLAMA_MODEL,
+  isChatLanguage,
+  type ChatLanguage,
+  type InferenceOptions,
+} from '../ai/config';
 import type { UIMessage } from '../ai/protocol';
 
 export const CHAT_STORAGE_KEY = 'webmcp:chat-transcript:v1';
@@ -14,6 +22,7 @@ export type ChatSettings = {
   inference: InferenceOptions;
   exposeToolsToAgent: boolean;
   keepThinkingOpen: boolean;
+  language: ChatLanguage;
 };
 
 export type PersistedTabChat = {
@@ -63,6 +72,7 @@ function defaultSettings(): ChatSettings {
     inference: { ...DEFAULT_INFERENCE_OPTIONS },
     exposeToolsToAgent: true,
     keepThinkingOpen: true,
+    language: DEFAULT_CHAT_LANGUAGE,
   };
 }
 
@@ -73,6 +83,7 @@ function parseSettings(parsed: Partial<ChatSettings>): ChatSettings {
     inference: { ...DEFAULT_INFERENCE_OPTIONS, ...parsed.inference },
     exposeToolsToAgent: typeof parsed.exposeToolsToAgent === 'boolean' ? parsed.exposeToolsToAgent : true,
     keepThinkingOpen: typeof parsed.keepThinkingOpen === 'boolean' ? parsed.keepThinkingOpen : true,
+    language: isChatLanguage(parsed.language) ? parsed.language : DEFAULT_CHAT_LANGUAGE,
   };
 }
 
@@ -237,8 +248,9 @@ export function persistChat(
   inference: InferenceOptions,
   exposeToolsToAgent: boolean,
   keepThinkingOpen: boolean,
+  language: ChatLanguage = DEFAULT_CHAT_LANGUAGE,
 ) {
-  persistChatSettings({ model, baseUrl, inference, exposeToolsToAgent, keepThinkingOpen });
+  persistChatSettings({ model, baseUrl, inference, exposeToolsToAgent, keepThinkingOpen, language });
 }
 
 /** @deprecated Use removeTabChat. */

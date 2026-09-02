@@ -9,7 +9,7 @@ After extension install, update, or browser startup, already-open http(s) tabs g
 ## Out of scope
 
 - `chrome.storage.session` persistence for panel subscriptions (TRL-12 panel-side reconnect).
-- Cold-start spec detail beyond injection parity (see TRL-18).
+- Cold-start spec detail — reconciled in TRL-18 (closed, satisfied by this impl).
 
 ## Implementation contract
 

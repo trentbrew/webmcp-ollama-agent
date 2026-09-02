@@ -70,7 +70,7 @@
   }
 
   .mcp-page__dot.is-active {
-    background: #16a34a;
+    background: oklch(var(--su));
   }
 
   .mcp-page__dot.is-inactive {

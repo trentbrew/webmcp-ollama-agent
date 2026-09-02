@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { ToolCallTrace } from '../../webmcp/protocol';
-  import { buildWaterfall, formatWaterfallDuration } from '../../webmcp/waterfall';
+  import {
+    buildWaterfall,
+    formatWaterfallDuration,
+  } from '../../webmcp/waterfall';
 
   let { traces }: { traces: ToolCallTrace[] } = $props();
 
@@ -11,7 +14,10 @@
 {#if layout.spans.length === 0}
   <p class="waterfall-empty">No tool calls yet.</p>
 {:else}
-  <div class="waterfall" style={`height: ${layout.laneCount * rowHeight + 8}px`}>
+  <div
+    class="waterfall"
+    style={`height: ${layout.laneCount * rowHeight + 8}px`}
+  >
     {#each layout.spans as span (span.id)}
       <div
         class="waterfall-span"
@@ -32,7 +38,8 @@
 
 <style>
   .waterfall-empty {
-    padding: 0.75rem 0;
+    margin: 0;
+    padding: 0;
     opacity: 0.5;
     font-size: 0.75rem;
     text-align: center;

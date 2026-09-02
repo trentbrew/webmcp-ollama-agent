@@ -131,6 +131,8 @@
     height: 100%;
     min-height: 0;
     flex-direction: column;
+    color: oklch(var(--bc));
+    background-color: oklch(var(--b3));
   }
 
   .chat-page__toolbar {
@@ -142,6 +144,7 @@
     border-bottom: 1px solid color-mix(in oklab, currentColor 12%, transparent);
     font-size: 0.6875rem;
     opacity: 0.75;
+    background: transparent;
   }
 
   .chat-page__favicon {

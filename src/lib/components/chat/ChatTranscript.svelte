@@ -1,5 +1,6 @@
 <script lang="ts">
   import { chatSessionState, getChat } from '../../chat.svelte';
+  import { currentPage } from '../../stores/navigation';
   import type { UIMessage } from '../../ai/protocol';
   import ChatMessage from './ChatMessage.svelte';
 
@@ -54,6 +55,14 @@
     if (!viewport || !stickToBottom) return;
     queueMicrotask(() => {
       viewport?.scrollTo({ top: viewport.scrollHeight });
+    });
+  });
+
+  $effect(() => {
+    if ($currentPage !== 'chat') return;
+    stickToBottom = true;
+    queueMicrotask(() => {
+      if (viewport) viewport.scrollTop = viewport.scrollHeight;
     });
   });
 </script>

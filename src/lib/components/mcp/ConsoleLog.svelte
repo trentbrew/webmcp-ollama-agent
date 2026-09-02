@@ -49,7 +49,8 @@
   }
 
   .console-entry.is-warn {
-    background: color-mix(in oklab, orange 12%, transparent);
+    background: oklch(var(--wa) / 0.12);
+    color: oklch(var(--wa));
   }
 
   .console-entry.is-error {

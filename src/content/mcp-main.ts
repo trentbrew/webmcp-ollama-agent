@@ -51,6 +51,18 @@ const metadataOnly = new Map<string, { name: string; title?: string; description
 
 let detected = false;
 
+function isWebMcpContext(ctx: ModelContextLike | undefined | null): ctx is ModelContextLike {
+  if (!ctx) return false;
+  return typeof ctx.registerTool === 'function' || typeof ctx.getTools === 'function';
+}
+
+function syncDetectedFlag() {
+  detected =
+    isWebMcpContext(getCurrentContext()) ||
+    captured.size > 0 ||
+    metadataOnly.size > 0;
+}
+
 function summarize() {
   const seen = new Set<string>();
   const tools = [] as Array<{
@@ -87,6 +99,7 @@ function post(message: Record<string, unknown>) {
 }
 
 function broadcastState(requestId?: string) {
+  syncDetectedFlag();
   post({ type: 'tools', requestId, detected, tools: summarize() });
 }
 
@@ -108,6 +121,7 @@ async function respondToListTools(requestId?: string) {
 
 function wrapModelContext(ctx: ModelContextLike | undefined | null): ModelContextLike | undefined {
   if (!ctx || (ctx as { __webmcpWrapped?: boolean }).__webmcpWrapped) return ctx ?? undefined;
+  if (!isWebMcpContext(ctx)) return ctx ?? undefined;
 
   const originalRegister = ctx.registerTool.bind(ctx);
   ctx.registerTool = (tool: WebMcpTool, options?: unknown) => {
@@ -115,7 +129,6 @@ function wrapModelContext(ctx: ModelContextLike | undefined | null): ModelContex
     if (tool && typeof tool.name === 'string' && typeof tool.execute === 'function') {
       captured.set(tool.name, tool);
       metadataOnly.delete(tool.name);
-      detected = true;
       broadcastState();
     }
     return result;
@@ -126,7 +139,7 @@ function wrapModelContext(ctx: ModelContextLike | undefined | null): ModelContex
   });
 
   (ctx as { __webmcpWrapped?: boolean }).__webmcpWrapped = true;
-  detected = true;
+  syncDetectedFlag();
   void refreshMetadata(ctx);
   return ctx;
 }
@@ -211,6 +224,7 @@ function watch(target: object, key: 'modelContext') {
 watch(document, 'modelContext');
 watch(navigator, 'modelContext');
 
+syncDetectedFlag();
 post({ type: 'ready', detected });
 
 // ---- Console + uncaught-error capture -------------------------------------

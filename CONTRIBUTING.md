@@ -95,10 +95,12 @@ Climb the evidence ladder as far as the change's risk demands:
 | --- | --- |
 | Static | `just check` |
 | Unit | `just unit` |
+| Harness page | `just e2e` |
 | Live tab | `just smoke` |
 | Manual | `just test`, then reload at `chrome://extensions/` |
 
-`just verify` runs the first two together.
+`just verify` runs the first three together — every rung that needs no relay,
+no focused tab, and no human.
 
 Manual verification is legitimate, but only when written into the issue journal
 with what was clicked and what was observed:

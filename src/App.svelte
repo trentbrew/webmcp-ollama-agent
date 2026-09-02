@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { theme, initializeTheme } from './lib/stores/theme';
-  import { currentPage } from './lib/stores/navigation';
+  import { currentPage, navigateTo } from './lib/stores/navigation';
   import { layoutMode } from './lib/stores/layout';
 
   import Nav from './lib/components/Nav.svelte';
@@ -13,13 +13,16 @@
   import { initChatSessionTracking } from './lib/chat.svelte';
   import { initBrowserContextTracking, browserContext } from './lib/browser/context.svelte';
   import { initMcpTracking } from './lib/webmcp/store.svelte';
-  import { checkAutoSync } from './lib/theme/pageTheme.svelte';
+  import { checkAutoSync, clearPageTheme } from './lib/theme/pageTheme.svelte';
+  import { trackChatActivity } from './lib/stores/navIndicators.svelte';
+  import { isChatBusy } from './lib/chat.svelte';
 
   import ChatPage from './lib/pages/ChatPage.svelte';
   import { getPageShellMeta } from './lib/components/shell';
 
   onMount(() => {
     initializeTheme();
+    clearPageTheme();
     void loadAvailableModels();
     initBrowserContextTracking();
     initMcpTracking();
@@ -30,6 +33,10 @@
     void browserContext.activeTab?.id;
     void browserContext.activeTab?.url;
     checkAutoSync();
+  });
+
+  $effect(() => {
+    trackChatActivity(isChatBusy(), $currentPage === 'chat');
   });
 
   const shellMeta = $derived(getPageShellMeta($currentPage));
@@ -50,7 +57,7 @@
         {/if}
       </main>
       <QuestionnaireDock />
-      <ChatComposer onSend={() => currentPage.set('chat')} />
+      <ChatComposer onSend={() => navigateTo('chat')} />
       <Nav />
     {/if}
   </div>

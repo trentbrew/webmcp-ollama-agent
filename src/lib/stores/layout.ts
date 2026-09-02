@@ -4,9 +4,13 @@ export type LayoutMode = 'dock' | 'panes';
 
 const STORAGE_KEY = 'svelte5-extension-layout';
 
-// Initialize from localStorage or default to 'dock'
-const storedLayout = (localStorage.getItem(STORAGE_KEY) as LayoutMode) || 'dock';
-export const layoutMode = writable<LayoutMode>(storedLayout);
+function readLayoutMode(): LayoutMode {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored === 'panes' || stored === 'dock') return stored;
+  return 'panes';
+}
+
+export const layoutMode = writable<LayoutMode>(readLayoutMode());
 
 // Subscribe to save layout changes to localStorage
 layoutMode.subscribe((value) => {

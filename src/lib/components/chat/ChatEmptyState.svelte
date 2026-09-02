@@ -111,13 +111,14 @@
   }
 
   .chat-empty__pill {
-    padding: 0.4375rem 0.875rem;
+    padding: 0.1875rem 0.5rem;
     border: 1px solid color-mix(in oklab, currentColor 14%, transparent);
     border-radius: 999px;
     background: color-mix(in oklab, currentColor 5%, transparent);
     color: inherit;
-    font-size: 0.8125rem;
+    font-size: 0.6875rem;
     line-height: 1.2;
+    white-space: nowrap;
     cursor: pointer;
     transition:
       border-color 150ms ease,
@@ -130,14 +131,15 @@
   }
 
   .chat-empty__pill.is-tool {
-    border-color: oklch(var(--su) / 0.45);
-    background: oklch(var(--su) / 0.12);
+    border-color: oklch(var(--su) / 0.55);
+    background: oklch(var(--su) / 0.14);
     color: oklch(var(--suc, var(--su)));
   }
 
   .chat-empty__pill.is-tool:hover:not(:disabled) {
-    border-color: oklch(var(--su) / 0.6);
+    border-color: oklch(var(--su) / 0.7);
     background: oklch(var(--su) / 0.18);
+    color: oklch(var(--suc, var(--su)));
   }
 
   .chat-empty__pill:disabled {

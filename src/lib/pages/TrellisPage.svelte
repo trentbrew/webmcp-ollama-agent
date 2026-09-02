@@ -6,10 +6,8 @@
   import { Button } from '../components/ui';
 
   type FactRow = { entity: string; type: string; attribute: string; value: string };
-  type RelRow = { source: string; attribute: string; target: string };
 
   let facts = $state<FactRow[]>([]);
-  let relationships = $state<RelRow[]>([]);
   let creating = $state(false);
 
   onMount(() => {
@@ -18,7 +16,6 @@
 
   function refresh(entities: EntityRecord[]) {
     const nextFacts: FactRow[] = [];
-    const nextRels: RelRow[] = [];
     for (const entity of entities) {
       for (const fact of entity.facts) {
         if (fact.a === 'type') continue;
@@ -29,12 +26,8 @@
           value: String(fact.v),
         });
       }
-      for (const link of entity.links) {
-        nextRels.push({ source: link.e1, attribute: link.a, target: link.e2 });
-      }
     }
     facts = nextFacts;
-    relationships = nextRels;
   }
 
   async function bootAndLoad() {
@@ -102,33 +95,6 @@
                 <td>{fact.type}</td>
                 <td>{fact.attribute}</td>
                 <td class="break-all">{fact.value}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    {/if}
-  </PageSection>
-
-  <PageSection title="Relationships ({relationships.length})">
-    {#if relationships.length === 0}
-      <p class="text-xs text-base-content/60">No relationships yet.</p>
-    {:else}
-      <div class="overflow-x-auto -mx-1">
-        <table class="shell-table">
-          <thead>
-            <tr>
-              <th>Source</th>
-              <th>Rel</th>
-              <th>Target</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each relationships as rel, i (`${rel.source}:${rel.attribute}:${rel.target}:${i}`)}
-              <tr>
-                <td class="font-mono text-[0.65rem] opacity-70 max-w-[4rem] truncate">{rel.source}</td>
-                <td>{rel.attribute}</td>
-                <td class="font-mono text-[0.65rem] opacity-70 max-w-[4rem] truncate">{rel.target}</td>
               </tr>
             {/each}
           </tbody>

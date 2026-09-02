@@ -6,9 +6,25 @@ export default {
   },
   plugins: [require("daisyui")],
   daisyui: {
+    darkTheme: 'dark',
     themes: [
       "light",
-      "dark",
+      {
+        dark: {
+          primary: '#8b8cf0',
+          secondary: '#71717a',
+          accent: '#6ee7b7',
+          neutral: '#3f3f46',
+          'base-100': '#1c1c1e',
+          'base-200': '#252528',
+          'base-300': '#141416',
+          'base-content': '#d4d4d8',
+          info: '#60a5fa',
+          success: '#4ade80',
+          warning: '#fbbf24',
+          error: '#f87171',
+        },
+      },
       "cupcake",
       "bumblebee",
       "emerald",

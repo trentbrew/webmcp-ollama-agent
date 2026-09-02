@@ -2,11 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
+html,
+body,
+#app {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   margin: 0;
   padding: 0;
+}
+
+/* Shell surfaces — every layer derives from the active daisyUI theme. */
+div[data-theme] {
+  --muted: oklch(var(--b2));
+  --surface-shell: oklch(var(--b3));
+  --surface-raised: oklch(var(--b2));
+  --surface-card: oklch(var(--b1));
+  --surface-border: oklch(var(--bc) / 0.14);
+  color: oklch(var(--bc));
+  background-color: var(--surface-shell);
+}
+
+main {
+  background-color: var(--surface-shell);
+}
+
+.chat-page {
+  flex: 1;
+  min-height: 0;
+  color: oklch(var(--bc));
+  background-color: var(--surface-shell);
 }
 
 /* Visible keyboard focus for all chat controls (replaces removed outlines). */
@@ -185,6 +209,8 @@ body {
 .page-shell {
   --shell-header-height: 2.5rem;
   font-size: 0.8125rem;
+  color: oklch(var(--bc));
+  background-color: var(--surface-shell);
 }
 
 .page-shell .shell-card {

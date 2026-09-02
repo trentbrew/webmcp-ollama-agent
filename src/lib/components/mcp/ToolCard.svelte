@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { ChevronDown, Play } from '../../icons';
+  import DOMPurify from 'dompurify';
+  import { ChevronDown, Play, Wrench } from '../../icons';
   import type { WebMcpToolSummary } from '../../webmcp/protocol';
+  import { highlightJson } from '../../jsonHighlight';
   import { runTool } from '../../webmcp/store.svelte';
 
   let { tool }: { tool: WebMcpToolSummary } = $props();
@@ -10,7 +12,27 @@
   let argsDraft = $state('{}');
   let argsError = $state<string | null>(null);
   let running = $state(false);
-  let lastResult = $state<{ ok: boolean; result?: unknown; error?: string } | null>(null);
+  let lastResult = $state<{
+    ok: boolean;
+    result?: unknown;
+    error?: string;
+  } | null>(null);
+
+  const schemaHtml = $derived(
+    DOMPurify.sanitize(highlightJson(tool.inputSchema ?? {}), {
+      ALLOWED_TAGS: ['span'],
+      ALLOWED_ATTR: ['class'],
+    }),
+  );
+
+  const resultHtml = $derived(
+    lastResult?.ok && lastResult.result !== undefined
+      ? DOMPurify.sanitize(highlightJson(lastResult.result), {
+          ALLOWED_TAGS: ['span'],
+          ALLOWED_ATTR: ['class'],
+        })
+      : null,
+  );
 
   async function handleRun() {
     let args: unknown;
@@ -32,24 +54,36 @@
 <div class="tool-card">
   <div class="tool-card__header">
     <div class="tool-card__title-row">
+      <Wrench size={13} class="tool-card__wrench" />
       <span class="tool-card__name">{tool.title || tool.name}</span>
       {#if !tool.invokable}
-        <span class="tool-card__badge tool-card__badge--muted">metadata only</span>
+        <span class="tool-card__badge tool-card__badge--muted"
+          >metadata only</span
+        >
       {/if}
     </div>
     <p class="tool-card__description">{tool.description}</p>
   </div>
 
   <div class="tool-card__actions">
-    <button type="button" class="tool-card__link" onclick={() => (schemaOpen = !schemaOpen)}>
-      <ChevronDown size={11} class={`tool-card__chevron${schemaOpen ? ' is-open' : ''}`} />
+    <button
+      type="button"
+      class="tool-card__link"
+      onclick={() => (schemaOpen = !schemaOpen)}
+    >
+      <ChevronDown
+        size={11}
+        class={`tool-card__chevron${schemaOpen ? ' is-open' : ''}`}
+      />
       schema
     </button>
     <button
       type="button"
       class="tool-card__run-btn"
       disabled={!tool.invokable}
-      title={tool.invokable ? 'Run this tool' : 'Not invokable — only seen via page metadata'}
+      title={tool.invokable
+        ? 'Run this tool'
+        : 'Not invokable — only seen via page metadata'}
       onclick={() => (runOpen = !runOpen)}
     >
       <Play size={11} />
@@ -58,22 +92,35 @@
   </div>
 
   {#if schemaOpen}
-    <pre class="tool-card__schema">{JSON.stringify(tool.inputSchema ?? {}, null, 2)}</pre>
+    <pre class="tool-card__schema tool-card__code">{@html schemaHtml}</pre>
   {/if}
 
   {#if runOpen}
     <div class="tool-card__run">
-      <textarea class="tool-card__args" rows={3} bind:value={argsDraft} spellcheck="false"></textarea>
+      <textarea
+        class="tool-card__args"
+        rows={3}
+        bind:value={argsDraft}
+        spellcheck="false"
+      ></textarea>
       {#if argsError}
         <p class="tool-card__error">{argsError}</p>
       {/if}
-      <button type="button" class="tool-card__submit" disabled={running} onclick={() => void handleRun()}>
+      <button
+        type="button"
+        class="tool-card__submit"
+        disabled={running}
+        onclick={() => void handleRun()}
+      >
         {running ? 'Running…' : 'Invoke'}
       </button>
       {#if lastResult}
-        <pre class="tool-card__result" class:is-error={!lastResult.ok}>{lastResult.ok
-            ? JSON.stringify(lastResult.result, null, 2)
-            : lastResult.error}</pre>
+        {#if lastResult.ok && resultHtml}
+          <pre
+            class="tool-card__result tool-card__code">{@html resultHtml}</pre>
+        {:else}
+          <pre class="tool-card__result is-error">{lastResult.error}</pre>
+        {/if}
       {/if}
     </div>
   {/if}
@@ -93,6 +140,12 @@
     display: flex;
     align-items: center;
     gap: 0.375rem;
+  }
+
+  :global(.tool-card__wrench) {
+    flex-shrink: 0;
+    opacity: 0.65;
+    color: oklch(var(--su));
   }
 
   .tool-card__name {
@@ -156,21 +209,25 @@
     gap: 0.25rem;
     margin-left: auto;
     padding: 0.1875rem 0.5rem;
-    border: 1px solid color-mix(in oklab, currentColor 16%, transparent);
+    border: 1px solid oklch(var(--su) / 0.55);
     border-radius: 999px;
-    background: transparent;
-    color: inherit;
+    background: oklch(var(--su) / 0.14);
+    color: oklch(var(--su));
     font-size: 0.6875rem;
     cursor: pointer;
   }
 
   .tool-card__run-btn:hover:not(:disabled) {
-    background: color-mix(in oklab, currentColor 8%, transparent);
+    background: oklch(var(--su) / 0.22);
+    border-color: oklch(var(--su) / 0.7);
   }
 
   .tool-card__run-btn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
+    border-color: color-mix(in oklab, currentColor 16%, transparent);
+    background: transparent;
+    color: inherit;
   }
 
   .tool-card__schema,
@@ -185,6 +242,27 @@
     line-height: 1.45;
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  .tool-card__code :global(.json-key) {
+    color: oklch(var(--p));
+  }
+
+  .tool-card__code :global(.json-string) {
+    color: oklch(var(--su));
+  }
+
+  .tool-card__code :global(.json-number) {
+    color: oklch(var(--wa));
+  }
+
+  .tool-card__code :global(.json-boolean) {
+    color: oklch(var(--in));
+  }
+
+  .tool-card__code :global(.json-null) {
+    color: oklch(var(--bc) / 0.55);
+    font-style: italic;
   }
 
   .tool-card__result.is-error {
@@ -222,12 +300,17 @@
   .tool-card__submit {
     align-self: flex-start;
     padding: 0.25rem 0.625rem;
-    border: none;
+    border: 1px solid oklch(var(--su) / 0.55);
     border-radius: 999px;
-    background: color-mix(in oklab, currentColor 14%, transparent);
-    color: inherit;
+    background: oklch(var(--su) / 0.14);
+    color: oklch(var(--su));
     font-size: 0.6875rem;
     cursor: pointer;
+  }
+
+  .tool-card__submit:hover:not(:disabled) {
+    background: oklch(var(--su) / 0.22);
+    border-color: oklch(var(--su) / 0.7);
   }
 
   .tool-card__submit:disabled {

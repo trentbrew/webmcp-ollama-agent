@@ -119,7 +119,7 @@
 
   const menuOpen = $derived(
     trigger !== null &&
-      items.length > 0 &&
+      (items.length > 0 || trigger.mode === 'trace') &&
       !menuDismissed &&
       !sessionPickerOpen,
   );
@@ -274,7 +274,7 @@
       }
     }
 
-    if (menuOpen) {
+    if (menuOpen && items.length > 0) {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         selectedIndex = (selectedIndex + 1) % items.length;
@@ -425,49 +425,57 @@
         role="listbox"
         aria-label="Composer suggestions"
       >
-        {#each items as item, index (item.kind === 'slash' ? `slash-${item.command.id}` : item.kind === 'tool' ? `tool-${item.name}` : `trace-${item.id}`)}
-          <button
-            type="button"
-            class="chat-composer__suggestion"
-            class:is-selected={index === selectedIndex}
-            role="option"
-            aria-selected={index === selectedIndex}
-            onmouseenter={() => (selectedIndex = index)}
-            onmousedown={(event) => event.preventDefault()}
-            onclick={() => applyItem(item)}
-          >
-            {#if item.kind === 'slash'}
-              <Terminal size={13} class="chat-composer__suggestion-icon" />
-              <span class="chat-composer__suggestion-text">
-                <span class="chat-composer__suggestion-title"
-                  >{item.command.title}</span
-                >
-                <span class="chat-composer__suggestion-desc"
-                  >{item.command.description}</span
-                >
-              </span>
-            {:else if item.kind === 'tool'}
-              <Wrench size={13} class="chat-composer__suggestion-icon" />
-              <span class="chat-composer__suggestion-text">
-                <span class="chat-composer__suggestion-title">@{item.name}</span
-                >
-                <span class="chat-composer__suggestion-desc"
-                  >{item.description}</span
-                >
-              </span>
-            {:else}
-              <Hash size={13} class="chat-composer__suggestion-icon" />
-              <span class="chat-composer__suggestion-text">
-                <span class="chat-composer__suggestion-title"
-                  >#{item.id.slice(0, 8)}</span
-                >
-                <span class="chat-composer__suggestion-desc"
-                  >{item.toolName} — {item.ok ? 'ok' : 'error'}</span
-                >
-              </span>
-            {/if}
-          </button>
-        {/each}
+        {#if items.length === 0}
+          <p class="chat-composer__suggestions-empty">
+            No tool traces yet for this tab. Run a tool call first, then
+            reference it with #.
+          </p>
+        {:else}
+          {#each items as item, index (item.kind === 'slash' ? `slash-${item.command.id}` : item.kind === 'tool' ? `tool-${item.name}` : `trace-${item.id}`)}
+            <button
+              type="button"
+              class="chat-composer__suggestion"
+              class:is-selected={index === selectedIndex}
+              role="option"
+              aria-selected={index === selectedIndex}
+              onmouseenter={() => (selectedIndex = index)}
+              onmousedown={(event) => event.preventDefault()}
+              onclick={() => applyItem(item)}
+            >
+              {#if item.kind === 'slash'}
+                <Terminal size={13} class="chat-composer__suggestion-icon" />
+                <span class="chat-composer__suggestion-text">
+                  <span class="chat-composer__suggestion-title"
+                    >{item.command.title}</span
+                  >
+                  <span class="chat-composer__suggestion-desc"
+                    >{item.command.description}</span
+                  >
+                </span>
+              {:else if item.kind === 'tool'}
+                <Wrench size={13} class="chat-composer__suggestion-icon" />
+                <span class="chat-composer__suggestion-text">
+                  <span class="chat-composer__suggestion-title"
+                    >@{item.name}</span
+                  >
+                  <span class="chat-composer__suggestion-desc"
+                    >{item.description}</span
+                  >
+                </span>
+              {:else}
+                <Hash size={13} class="chat-composer__suggestion-icon" />
+                <span class="chat-composer__suggestion-text">
+                  <span class="chat-composer__suggestion-title"
+                    >#{item.id.slice(0, 8)}</span
+                  >
+                  <span class="chat-composer__suggestion-desc"
+                    >{item.toolName} — {item.ok ? 'ok' : 'error'}</span
+                  >
+                </span>
+              {/if}
+            </button>
+          {/each}
+        {/if}
       </div>
     {/if}
 
@@ -489,16 +497,6 @@
 
   <div class="chat-composer__actions">
     <div class="chat-composer__left">
-      <button
-        type="button"
-        class="chat-composer__icon-btn"
-        aria-label="Add attachments"
-        disabled={busy}
-        onclick={openFilePicker}
-      >
-        <Paperclip size={14} />
-      </button>
-
       <div class="chat-composer__model">
         <button
           type="button"
@@ -546,11 +544,14 @@
             type="button"
             class="chat-composer__tools-pill"
             class:is-discovered={discoveredTools.length > 0}
-            class:is-on={chatSettings.exposeToolsToAgent}
+            class:is-on={chatSettings.exposeToolsToAgent &&
+              discoveredTools.length > 0}
+            disabled={discoveredTools.length === 0}
             aria-haspopup="menu"
-            aria-expanded={toolsMenuOpen}
+            aria-expanded={toolsMenuOpen && discoveredTools.length > 0}
             title={`${discoveredTools.length} discovered tool${discoveredTools.length === 1 ? '' : 's'}`}
-            onclick={() => (toolsMenuOpen = !toolsMenuOpen)}
+            onclick={() =>
+              discoveredTools.length > 0 && (toolsMenuOpen = !toolsMenuOpen)}
           >
             {discoveredTools.length} discovered
           </button>
@@ -634,18 +635,29 @@
       </div>
     </div>
 
-    <button
-      type="submit"
-      class="chat-composer__send"
-      disabled={!canSend || busy}
-      aria-label="Send message"
-    >
-      {#if busy}
-        <Square size={11} fill="currentColor" strokeWidth={0} />
-      {:else}
-        <ArrowUp size={14} />
-      {/if}
-    </button>
+    <div class="flex gap-2 align-center">
+      <button
+        type="button"
+        class="chat-composer__icon-btn"
+        aria-label="Add attachments"
+        disabled={busy}
+        onclick={openFilePicker}
+      >
+        <Paperclip size={14} />
+      </button>
+      <button
+        type="submit"
+        class="chat-composer__send"
+        disabled={!canSend || busy}
+        aria-label="Send message"
+      >
+        {#if busy}
+          <Square size={10} fill="currentColor" strokeWidth={0} />
+        {:else}
+          <ArrowUp size={12} />
+        {/if}
+      </button>
+    </div>
   </div>
 </form>
 
@@ -687,7 +699,7 @@
     /* box-shadow: 0 -8px 24px -4px color-mix(in oklab, black 12%, transparent); */
     border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
     border-radius: 0.75rem;
-    background: color-mix(in oklab, currentColor 3%, transparent);
+    background: oklch(var(--b1));
     transition: border-color 160ms ease;
   }
 
@@ -704,11 +716,12 @@
     min-width: 0;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.125rem 0.125rem 0.375rem;
-    border-bottom: 1px solid color-mix(in oklab, currentColor 8%, transparent);
+    padding: 0.125rem 0.325rem;
+    border-radius: 6px;
+    border: 1px solid color-mix(in oklab, currentColor 8%, transparent);
     color: oklch(var(--bc) / 0.62);
     font-size: 0.6875rem;
-    background: var(--muted);
+    background: oklch(var(--bc) / 0.1);
   }
 
   :global(.chat-composer__context svg) {
@@ -866,19 +879,19 @@
     opacity: 1;
     border-color: oklch(var(--su) / 0.55);
     background: oklch(var(--su) / 0.14);
-    color: oklch(0.72 0.19 145);
+    color: oklch(var(--su));
     animation: chat-composer-discovered-pulse 1.8s ease-in-out infinite;
   }
 
   @keyframes chat-composer-discovered-pulse {
     0%,
     100% {
-      color: oklch(0.68 0.17 145);
+      color: oklch(var(--su) / 0.88);
       border-color: oklch(var(--su) / 0.45);
       box-shadow: 0 0 0 0 oklch(var(--su) / 0);
     }
     50% {
-      color: oklch(0.78 0.2 145);
+      color: oklch(var(--su));
       border-color: oklch(var(--su) / 0.7);
       box-shadow: 0 0 8px 0 oklch(var(--su) / 0.25);
     }
@@ -894,7 +907,16 @@
   .chat-composer__tools-pill.is-on.is-discovered {
     border-color: oklch(var(--su) / 0.6);
     background: oklch(var(--su) / 0.18);
-    color: oklch(0.74 0.19 145);
+    color: oklch(var(--su));
+  }
+
+  .chat-composer__tools-pill:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    animation: none;
+    border-color: color-mix(in oklab, currentColor 10%, transparent);
+    background: color-mix(in oklab, currentColor 3%, transparent);
+    color: color-mix(in oklab, currentColor 50%, transparent);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1019,6 +1041,7 @@
 
   .chat-composer__textarea {
     width: 100%;
+    padding: 0.125rem;
     min-height: 5rem;
     max-height: 10rem;
     resize: none;

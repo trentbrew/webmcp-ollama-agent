@@ -1,3 +1,4 @@
+import { setNavBadgeCounts } from '../stores/navIndicators.svelte';
 import {
   WEBMCP_PANEL_PORT,
   type BackgroundToPanel,
@@ -36,6 +37,10 @@ function connect() {
   mcpState.connected = true;
 
   port.onMessage.addListener((message: BackgroundToPanel) => {
+    if (message.type === 'nav-summary') {
+      setNavBadgeCounts(message.toolCount, message.traceCount);
+      return;
+    }
     if (message.type === 'tab-state') {
       if (message.state.tabId === mcpState.tabId) mcpState.state = message.state;
       return;
@@ -107,9 +112,21 @@ async function subscribeToActiveTab() {
 
   mcpState.tabId = tab.id;
   mcpState.tabUrl = tab.url ?? null;
+  // Clear stale tool/detection state from the previous tab until the background
+  // pushes fresh state for this tab.
+  mcpState.state = {
+    tabId: tab.id,
+    url: tab.url ?? null,
+    detected: false,
+    tools: [],
+    updatedAt: Date.now(),
+  };
   mcpState.traces = [];
   mcpState.console = [];
   send({ type: 'subscribe', tabId: tab.id });
+  if (tab.id != null) {
+    send({ type: 'nav-summary', activeTabId: tab.id });
+  }
 }
 
 export function initMcpTracking() {

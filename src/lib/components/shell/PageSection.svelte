@@ -26,7 +26,9 @@
 
 <Card class={cn('shell-card', className)}>
   {#if title || description || actions}
-    <CardHeader class="flex-row items-start justify-between gap-2 space-y-0">
+    <CardHeader
+      class="flex-row items-start justify-between gap-2 space-y-0 pb-3"
+    >
       <div class="space-y-1">
         {#if title}
           <CardTitle>{title}</CardTitle>

@@ -97,23 +97,30 @@ not a witness.
 
 ## The evidence ladder
 
-Four rungs, cheapest first. A wedge climbs only as far as its risk demands.
+Five rungs, cheapest first. A wedge climbs only as far as its risk demands.
 
 | Rung | Command | Covers |
 | --- | --- | --- |
 | **Static** | `just check` | svelte-check types across `src/` |
 | **Unit** | `just unit` | Pure logic + `chrome.*`-faked store behavior (`vitest`) |
+| **Harness page** | `just e2e` | Panel components in a real browser, extension stripped away (`playwright`) |
 | **Live tab** | `just smoke` | Real page DOM + console, via the Trellis extension relay |
 | **Manual** | `just test`, reload at `chrome://extensions/` | Side panel UI, MV3 lifecycle, anything the rungs above cannot reach |
 
-`just verify` runs the first two — the floor every wedge clears.
+`just verify` runs the first three — every rung that runs unattended, and the
+floor every wedge clears.
 
-**Playwright is deliberately absent.** The wedge under test is an MV3 side panel;
-a Playwright page context cannot open one, and driving `chrome://extensions/` is
-not a test. The live-tab rung covers the page half of the contract; the panel half
-is covered by unit tests with faked `chrome.runtime` ports (see
-`src/lib/webmcp/store.reconnect.test.ts`), and the remainder is manual and says so
-in the journal.
+**Playwright cannot drive the extension** — a page context cannot open an MV3 side
+panel, and driving `chrome://extensions/` is not a test. So Playwright runs against
+a *standalone harness page* instead: `questionnaire-e2e.html`, served by Vite,
+mounting panel components with no extension around them (`e2e/questionnaire.spec.ts`).
+That buys real browser semantics for panel UI — focus, roles, labels, validation,
+disabled states — at the cost of seeing nothing that crosses the extension boundary.
+
+What that rung cannot see, the others must: ports and service-worker lifecycle by
+unit tests with faked `chrome.runtime` (`src/lib/webmcp/store.reconnect.test.ts`),
+the page half of the contract by the live-tab rung, and the rest by manual
+verification that says so in the journal.
 
 Manual verification is legitimate — but only when it is **written down in the
 journal with what was clicked and what was observed**. "Tested locally" is not.
@@ -126,9 +133,15 @@ Declared in `.trellis/tests.json` so `trellis issue check` can run them:
 
 | Suite | Command |
 | --- | --- |
-| `unit` | `pnpm test` |
 | `check` | `pnpm check` |
-| `browser-smoke` | `trellis browser verify browser-smoke` (steps: `.trellis/browser-suites/browser-smoke.json`) |
+| `unit` | `pnpm test` |
+| `e2e` | `pnpm test:e2e e2e/questionnaire.spec.ts` |
+
+The live-tab suite is **not** registered here. Its steps live in
+`.trellis/browser-suites/browser-smoke.json` and run via `just smoke`, but because
+it needs a relay and a focused tab it cannot pass unattended — so `trellis issue
+check` does not run it, and an issue that depends on it must record the run in its
+journal by hand.
 
 `.gitignore` excludes `.trellis/*` but negates `tests.json` and `browser-suites/`,
 so the harness travels with the repo while the kernel db, op-log, lanes, and
