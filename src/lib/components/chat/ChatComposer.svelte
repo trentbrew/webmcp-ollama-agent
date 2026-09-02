@@ -499,6 +499,36 @@
         <Paperclip size={14} />
       </button>
 
+      <div class="chat-composer__model">
+        <button
+          type="button"
+          class="chat-composer__model-btn"
+          aria-haspopup="listbox"
+          aria-expanded={modelMenuOpen}
+          disabled={busy}
+          onclick={() => (modelMenuOpen = !modelMenuOpen)}
+        >
+          <span class="truncate">{chatSettings.model}</span>
+          <ChevronDown size={11} />
+        </button>
+        {#if modelMenuOpen}
+          <div class="chat-composer__model-menu" role="listbox">
+            {#each chatModelCatalog.available as model (model)}
+              <button
+                type="button"
+                class="chat-composer__model-item"
+                class:is-selected={chatSettings.model === model}
+                role="option"
+                aria-selected={chatSettings.model === model}
+                onclick={() => pickModel(model)}
+              >
+                <span class="truncate">{model}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
       <div class="chat-composer__tools">
         <div class="chat-composer__tools-pills">
           <button
@@ -599,36 +629,6 @@
                 </button>
               {/each}
             </div>
-          </div>
-        {/if}
-      </div>
-
-      <div class="chat-composer__model">
-        <button
-          type="button"
-          class="chat-composer__model-btn"
-          aria-haspopup="listbox"
-          aria-expanded={modelMenuOpen}
-          disabled={busy}
-          onclick={() => (modelMenuOpen = !modelMenuOpen)}
-        >
-          <span class="truncate">{chatSettings.model}</span>
-          <ChevronDown size={11} />
-        </button>
-        {#if modelMenuOpen}
-          <div class="chat-composer__model-menu" role="listbox">
-            {#each chatModelCatalog.available as model (model)}
-              <button
-                type="button"
-                class="chat-composer__model-item"
-                class:is-selected={chatSettings.model === model}
-                role="option"
-                aria-selected={chatSettings.model === model}
-                onclick={() => pickModel(model)}
-              >
-                <span class="truncate">{model}</span>
-              </button>
-            {/each}
           </div>
         {/if}
       </div>
@@ -864,9 +864,24 @@
 
   .chat-composer__tools-pill.is-discovered {
     opacity: 1;
-    border-color: oklch(var(--su) / 0.45);
-    background: oklch(var(--su) / 0.12);
-    color: oklch(var(--suc, var(--su)));
+    border-color: oklch(var(--su) / 0.55);
+    background: oklch(var(--su) / 0.14);
+    color: oklch(0.72 0.19 145);
+    animation: chat-composer-discovered-pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes chat-composer-discovered-pulse {
+    0%,
+    100% {
+      color: oklch(0.68 0.17 145);
+      border-color: oklch(var(--su) / 0.45);
+      box-shadow: 0 0 0 0 oklch(var(--su) / 0);
+    }
+    50% {
+      color: oklch(0.78 0.2 145);
+      border-color: oklch(var(--su) / 0.7);
+      box-shadow: 0 0 8px 0 oklch(var(--su) / 0.25);
+    }
   }
 
   .chat-composer__tools-pill.is-on {
@@ -877,9 +892,15 @@
   }
 
   .chat-composer__tools-pill.is-on.is-discovered {
-    border-color: oklch(var(--su) / 0.55);
-    background: oklch(var(--su) / 0.16);
-    color: oklch(var(--suc, var(--su)));
+    border-color: oklch(var(--su) / 0.6);
+    background: oklch(var(--su) / 0.18);
+    color: oklch(0.74 0.19 145);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-composer__tools-pill.is-discovered {
+      animation: none;
+    }
   }
 
   .chat-composer__tools {
