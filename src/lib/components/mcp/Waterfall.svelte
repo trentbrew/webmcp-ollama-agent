@@ -11,40 +11,25 @@
   const rowHeight = 22;
 </script>
 
-{#if layout.spans.length === 0}
-  <p class="waterfall-empty">No tool calls yet.</p>
-{:else}
-  <div
-    class="waterfall"
-    style={`height: ${layout.laneCount * rowHeight + 8}px`}
-  >
-    {#each layout.spans as span (span.id)}
-      <div
-        class="waterfall-span"
-        class:is-error={!span.ok}
-        class:is-agent={span.source === 'agent'}
-        style={`left: ${(span.startMs / layout.totalMs) * 100}%; width: ${Math.max((span.durationMs / layout.totalMs) * 100, 0.5)}%; top: ${span.lane * rowHeight}px;`}
-        title={`${span.label} — ${formatWaterfallDuration(span.durationMs)}${span.ok ? '' : ' (error)'}`}
-      >
-        <span class="waterfall-span__label">{span.label}</span>
-      </div>
-    {/each}
-  </div>
-  <div class="waterfall-axis">
-    <span>0ms</span>
-    <span>{formatWaterfallDuration(layout.totalMs)}</span>
-  </div>
-{/if}
+<div class="waterfall" style={`height: ${layout.laneCount * rowHeight + 8}px`}>
+  {#each layout.spans as span (span.id)}
+    <div
+      class="waterfall-span"
+      class:is-error={!span.ok}
+      class:is-agent={span.source === 'agent'}
+      style={`left: ${(span.startMs / layout.totalMs) * 100}%; width: ${Math.max((span.durationMs / layout.totalMs) * 100, 0.5)}%; top: ${span.lane * rowHeight}px;`}
+      title={`${span.label} — ${formatWaterfallDuration(span.durationMs)}${span.ok ? '' : ' (error)'}`}
+    >
+      <span class="waterfall-span__label">{span.label}</span>
+    </div>
+  {/each}
+</div>
+<div class="waterfall-axis">
+  <span>0ms</span>
+  <span>{formatWaterfallDuration(layout.totalMs)}</span>
+</div>
 
 <style>
-  .waterfall-empty {
-    margin: 0;
-    padding: 0;
-    opacity: 0.5;
-    font-size: 0.75rem;
-    text-align: center;
-  }
-
   .waterfall {
     position: relative;
     width: 100%;
