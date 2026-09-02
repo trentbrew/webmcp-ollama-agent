@@ -1,8 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { ExternalLink } from '../icons';
   import McpLogo from '../components/icons/McpLogo.svelte';
   import ToolCard from '../components/mcp/ToolCard.svelte';
   import { initMcpTracking, mcpState } from '../webmcp/store.svelte';
+
+  const WEBMCP_DOCS_URL = 'https://developer.chrome.com/docs/ai/webmcp';
 
   onMount(() => {
     initMcpTracking();
@@ -44,6 +47,15 @@
             ? 'This page exposes document.modelContext but has not registered any tools.'
             : 'Navigate to a page that registers WebMCP tools via document.modelContext to see them here.'}
         </p>
+        <a
+          class="mcp-page__empty-link"
+          href={WEBMCP_DOCS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Learn more
+          <ExternalLink size={11} />
+        </a>
       </div>
     {:else}
       <div class="mcp-page__list">
@@ -128,5 +140,21 @@
     font-size: 0.75rem;
     line-height: 1.5;
     opacity: 0.65;
+  }
+
+  .mcp-page__empty-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.125rem;
+    font-size: 0.75rem;
+    color: inherit;
+    opacity: 0.33;
+    text-decoration: none;
+    transition: opacity 150ms ease;
+  }
+
+  .mcp-page__empty-link:hover {
+    opacity: 0.85;
   }
 </style>
