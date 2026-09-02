@@ -1,6 +1,4 @@
-## 2026-09-01 — Spec draft (architect)
+## 2026-09-01 — Impl fix (executor)
 
-- Strategist routed questionnaire UX wedge as TRL-19; **TRL-19 already claimed** (composer toolbar). Retargeted to **TRL-20**.
-- Human feedback: over-questioning on travel prompt; date field accepts 1997.
-- Spec: zod runtime for declarative `validation` + `default` prefill + generalized `when`; per-step Next gate; date baseline `minDate: today`; inference-first prompt/tool copy.
-- Parent: TRL-14 (`ask_user` questionnaires).
+- Fixed Playwright `webServer` — vite now binds `--host 127.0.0.1` (IPv6-only localhost caused probe failure on `127.0.0.1`).
+- `pnpm test:e2e e2e/questionnaire.spec.ts`: 3/3 pass (includes invalid-date Next block).

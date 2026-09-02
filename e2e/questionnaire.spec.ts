@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('ask_user questionnaire', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/questionnaire-e2e.html');
     await expect(page.getByRole('article', { name: 'Structured questionnaire' })).toBeVisible();

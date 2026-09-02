@@ -13,7 +13,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: `pnpm exec vite --port ${port} --strictPort`,
+    command: `pnpm exec vite --port ${port} --strictPort --host 127.0.0.1`,
     url: `http://127.0.0.1:${port}/questionnaire-e2e.html`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
