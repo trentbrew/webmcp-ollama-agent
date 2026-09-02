@@ -7,10 +7,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     rollupOptions: {
+      // questionnaire-e2e.html is deliberately absent: it's a Playwright fixture, and
+      // e2e runs against the dev server (see playwright.config.ts), which serves it from
+      // the project root with no build step. Listing it here would ship a test harness
+      // to the Chrome Web Store.
       input: {
         main: resolve(__dirname, 'index.html'),
         background: resolve(__dirname, 'src/background/index.ts'),
-        'questionnaire-e2e': resolve(__dirname, 'questionnaire-e2e.html'),
       },
       output: {
         entryFileNames: `assets/[name].js`,

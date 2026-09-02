@@ -52,6 +52,7 @@ export {
   Hash,
   Sparkles,
   Loader,
+  PlugZap,
 } from '@lucide/svelte';
 
 // Re-export types

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { MessageCircleDashed, Radar } from '../../icons';
   import { isChatBusy, sendChatMessage } from '../../chat.svelte';
-  import { chatSettings } from '../../chat/settings.svelte';
+  import OllamaOffline from './OllamaOffline.svelte';
+  import { chatModelCatalog, chatSettings } from '../../chat/settings.svelte';
   import {
     buildChatSuggestions,
     emptyStateSubtitle,
@@ -25,6 +26,11 @@
   }
 </script>
 
+<!-- With no reachable model host the suggestion pills are dead ends -- every one of them
+     sends a message that can only fail -- so the offline state replaces them entirely. -->
+{#if chatModelCatalog.unavailable}
+  <OllamaOffline />
+{:else}
 <div class="chat-empty">
   {#if invokableCount > 0}
     <Radar size={24} class="chat-empty__icon chat-empty__icon--active" />
@@ -62,6 +68,7 @@
     {/each}
   </div>
 </div>
+{/if}
 
 <style>
   .chat-empty {
