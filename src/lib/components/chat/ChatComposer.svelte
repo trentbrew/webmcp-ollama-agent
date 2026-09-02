@@ -500,7 +500,7 @@
       <div class="chat-composer__model">
         <button
           type="button"
-          class="chat-composer__model-btn"
+          class="chat-composer__model-btn semantic-pill semantic-pill--solid"
           aria-haspopup="listbox"
           aria-expanded={modelMenuOpen}
           disabled={busy}
@@ -531,8 +531,8 @@
         <div class="chat-composer__tools-pills">
           <button
             type="button"
-            class="chat-composer__tools-pill"
-            class:is-on={chatSettings.exposeToolsToAgent}
+            class="semantic-pill semantic-pill--muted"
+            class:semantic-pill--primary={chatSettings.exposeToolsToAgent}
             aria-haspopup="menu"
             aria-expanded={toolsMenuOpen}
             title={`${builtinTools.length} built-in tool${builtinTools.length === 1 ? '' : 's'}`}
@@ -542,10 +542,12 @@
           </button>
           <button
             type="button"
-            class="chat-composer__tools-pill"
-            class:is-discovered={discoveredTools.length > 0}
-            class:is-on={chatSettings.exposeToolsToAgent &&
+            class="semantic-pill semantic-pill--muted"
+            class:semantic-pill--success={discoveredTools.length > 0}
+            class:is-active={chatSettings.exposeToolsToAgent &&
               discoveredTools.length > 0}
+            class:is-pulse={discoveredTools.length > 0 &&
+              !chatSettings.exposeToolsToAgent}
             disabled={discoveredTools.length === 0}
             aria-haspopup="menu"
             aria-expanded={toolsMenuOpen && discoveredTools.length > 0}
@@ -860,71 +862,6 @@
     gap: 0.3125rem;
   }
 
-  .chat-composer__tools-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.1875rem 0.5rem;
-    border: 1px solid color-mix(in oklab, currentColor 16%, transparent);
-    border-radius: 999px;
-    background: transparent;
-    color: inherit;
-    opacity: 0.55;
-    font-size: 0.6875rem;
-    line-height: 1.2;
-    white-space: nowrap;
-    cursor: pointer;
-  }
-
-  .chat-composer__tools-pill.is-discovered {
-    opacity: 1;
-    border-color: oklch(var(--su) / 0.55);
-    background: oklch(var(--su) / 0.14);
-    color: oklch(var(--su));
-    animation: chat-composer-discovered-pulse 1.8s ease-in-out infinite;
-  }
-
-  @keyframes chat-composer-discovered-pulse {
-    0%,
-    100% {
-      color: oklch(var(--su) / 0.88);
-      border-color: oklch(var(--su) / 0.45);
-      box-shadow: 0 0 0 0 oklch(var(--su) / 0);
-    }
-    50% {
-      color: oklch(var(--su));
-      border-color: oklch(var(--su) / 0.7);
-      box-shadow: 0 0 8px 0 oklch(var(--su) / 0.25);
-    }
-  }
-
-  .chat-composer__tools-pill.is-on {
-    opacity: 1;
-    border-color: oklch(var(--p) / 0.5);
-    background: oklch(var(--p) / 0.12);
-    color: oklch(var(--p));
-  }
-
-  .chat-composer__tools-pill.is-on.is-discovered {
-    border-color: oklch(var(--su) / 0.6);
-    background: oklch(var(--su) / 0.18);
-    color: oklch(var(--su));
-  }
-
-  .chat-composer__tools-pill:disabled {
-    opacity: 0.42;
-    cursor: not-allowed;
-    animation: none;
-    border-color: color-mix(in oklab, currentColor 10%, transparent);
-    background: color-mix(in oklab, currentColor 3%, transparent);
-    color: color-mix(in oklab, currentColor 50%, transparent);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .chat-composer__tools-pill.is-discovered {
-      animation: none;
-    }
-  }
-
   .chat-composer__tools {
     position: relative;
   }
@@ -1109,18 +1046,6 @@
     max-width: 9rem;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid color-mix(in oklab, currentColor 16%, transparent);
-    border-radius: 999px;
-    background: var(--muted);
-    color: inherit;
-    font-size: 0.6875rem;
-    cursor: pointer;
-  }
-
-  .chat-composer__model-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .chat-composer__model-menu {

@@ -1,0 +1,162 @@
+/* Semantic pill tokens — fg / border / bg by variant and interaction state.
+   Used by chat empty suggestions, composer tool badges, tool run buttons, etc.
+ *
+ * Variant × state matrix:
+ *   neutral     — empty-state default suggestions (visible outline)
+ *   muted       — composer pills at rest (low opacity)
+ *   primary     — built-in tools exposed to agent
+ *   success     — discovered WebMCP tools / tool-linked actions
+ *   solid       — filled selector chips (model picker)
+ *
+ * Interaction modifiers (combine with variants):
+ *   :hover       — elevated border/bg per variant
+ *   .is-active   — success variant when discovered tools are exposed
+ *   .is-pulse    — success attention pulse (discovered, not yet exposed)
+ *   :disabled    — unified muted fg/border/bg + reduced opacity
+ */
+
+div[data-theme] {
+	/* Neutral — visible outline (empty-state suggestions) */
+	--pill-neutral-fg: inherit;
+	--pill-neutral-border: color-mix(in oklab, currentColor 14%, transparent);
+	--pill-neutral-bg: color-mix(in oklab, currentColor 5%, transparent);
+	--pill-neutral-border-hover: color-mix(in oklab, currentColor 24%, transparent);
+	--pill-neutral-bg-hover: color-mix(in oklab, currentColor 9%, transparent);
+
+	/* Muted — low-emphasis rest (composer tool pills before activation) */
+	--pill-muted-fg: inherit;
+	--pill-muted-opacity: 0.55;
+	--pill-muted-border: color-mix(in oklab, currentColor 16%, transparent);
+	--pill-muted-bg: transparent;
+
+	/* Primary — built-in tools exposed / active toggles */
+	--pill-primary-fg: oklch(var(--p));
+	--pill-primary-border: oklch(var(--p) / 0.5);
+	--pill-primary-bg: oklch(var(--p) / 0.12);
+
+	/* Success — discovered WebMCP tools, tool-linked suggestions */
+	--pill-success-fg: oklch(var(--suc, var(--su)));
+	--pill-success-border: oklch(var(--su) / 0.55);
+	--pill-success-bg: oklch(var(--su) / 0.14);
+	--pill-success-border-hover: oklch(var(--su) / 0.7);
+	--pill-success-bg-hover: oklch(var(--su) / 0.18);
+	--pill-success-active-border: oklch(var(--su) / 0.6);
+	--pill-success-active-bg: oklch(var(--su) / 0.18);
+
+	/* Solid — filled selector chips (model picker) */
+	--pill-solid-fg: inherit;
+	--pill-solid-border: color-mix(in oklab, currentColor 16%, transparent);
+	--pill-solid-bg: var(--muted);
+
+	/* Disabled — all variants */
+	--pill-disabled-opacity: 0.42;
+	--pill-disabled-border: color-mix(in oklab, currentColor 10%, transparent);
+	--pill-disabled-bg: color-mix(in oklab, currentColor 3%, transparent);
+	--pill-disabled-fg: color-mix(in oklab, currentColor 50%, transparent);
+}
+
+.semantic-pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.1875rem 0.5rem;
+	border: 1px solid var(--pill-border);
+	border-radius: 999px;
+	background: var(--pill-bg);
+	color: var(--pill-fg);
+	opacity: var(--pill-opacity, 1);
+	font-size: 0.6875rem;
+	line-height: 1.2;
+	white-space: nowrap;
+	cursor: pointer;
+	transition:
+		border-color 150ms ease,
+		background 150ms ease,
+		opacity 150ms ease,
+		color 150ms ease;
+}
+
+.semantic-pill--neutral {
+	--pill-fg: var(--pill-neutral-fg);
+	--pill-border: var(--pill-neutral-border);
+	--pill-bg: var(--pill-neutral-bg);
+}
+
+.semantic-pill--neutral:hover:not(:disabled) {
+	--pill-border: var(--pill-neutral-border-hover);
+	--pill-bg: var(--pill-neutral-bg-hover);
+}
+
+.semantic-pill--muted {
+	--pill-fg: var(--pill-muted-fg);
+	--pill-border: var(--pill-muted-border);
+	--pill-bg: var(--pill-muted-bg);
+	--pill-opacity: var(--pill-muted-opacity);
+}
+
+.semantic-pill--muted:hover:not(:disabled) {
+	--pill-opacity: 1;
+}
+
+.semantic-pill--primary {
+	--pill-fg: var(--pill-primary-fg);
+	--pill-border: var(--pill-primary-border);
+	--pill-bg: var(--pill-primary-bg);
+	--pill-opacity: 1;
+}
+
+.semantic-pill--success {
+	--pill-fg: var(--pill-success-fg);
+	--pill-border: var(--pill-success-border);
+	--pill-bg: var(--pill-success-bg);
+	--pill-opacity: 1;
+}
+
+.semantic-pill--success:hover:not(:disabled) {
+	--pill-border: var(--pill-success-border-hover);
+	--pill-bg: var(--pill-success-bg-hover);
+}
+
+.semantic-pill--success.is-active {
+	--pill-border: var(--pill-success-active-border);
+	--pill-bg: var(--pill-success-active-bg);
+}
+
+.semantic-pill--solid {
+	--pill-fg: var(--pill-solid-fg);
+	--pill-border: var(--pill-solid-border);
+	--pill-bg: var(--pill-solid-bg);
+	padding: 0.25rem 0.5rem;
+}
+
+.semantic-pill:disabled {
+	--pill-opacity: var(--pill-disabled-opacity);
+	--pill-border: var(--pill-disabled-border);
+	--pill-bg: var(--pill-disabled-bg);
+	--pill-fg: var(--pill-disabled-fg);
+	cursor: not-allowed;
+	animation: none;
+}
+
+.semantic-pill--success.is-pulse:not(:disabled):not(.is-active) {
+	animation: semantic-pill-success-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes semantic-pill-success-pulse {
+	0%,
+	100% {
+		color: oklch(var(--su) / 0.88);
+		border-color: oklch(var(--su) / 0.45);
+		box-shadow: 0 0 0 0 oklch(var(--su) / 0);
+	}
+	50% {
+		color: oklch(var(--su));
+		border-color: oklch(var(--su) / 0.7);
+		box-shadow: 0 0 8px 0 oklch(var(--su) / 0.25);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.semantic-pill--success.is-pulse {
+		animation: none;
+	}
+}

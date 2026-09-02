@@ -79,7 +79,7 @@
     </button>
     <button
       type="button"
-      class="tool-card__run-btn"
+      class="tool-card__run-btn semantic-pill semantic-pill--success"
       disabled={!tool.invokable}
       title={tool.invokable
         ? 'Run this tool'
@@ -108,7 +108,7 @@
       {/if}
       <button
         type="button"
-        class="tool-card__submit"
+        class="tool-card__submit semantic-pill semantic-pill--success"
         disabled={running}
         onclick={() => void handleRun()}
       >
@@ -208,26 +208,11 @@
     align-items: center;
     gap: 0.25rem;
     margin-left: auto;
-    padding: 0.1875rem 0.5rem;
-    border: 1px solid oklch(var(--su) / 0.55);
-    border-radius: 999px;
-    background: oklch(var(--su) / 0.14);
-    color: oklch(var(--su));
-    font-size: 0.6875rem;
-    cursor: pointer;
   }
 
-  .tool-card__run-btn:hover:not(:disabled) {
-    background: oklch(var(--su) / 0.22);
-    border-color: oklch(var(--su) / 0.7);
-  }
-
-  .tool-card__run-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-    border-color: color-mix(in oklab, currentColor 16%, transparent);
-    background: transparent;
-    color: inherit;
+  .tool-card__submit {
+    align-self: flex-start;
+    padding: 0.25rem 0.625rem;
   }
 
   .tool-card__schema,
@@ -295,26 +280,5 @@
     margin: 0;
     color: oklch(var(--er));
     font-size: 0.6875rem;
-  }
-
-  .tool-card__submit {
-    align-self: flex-start;
-    padding: 0.25rem 0.625rem;
-    border: 1px solid oklch(var(--su) / 0.55);
-    border-radius: 999px;
-    background: oklch(var(--su) / 0.14);
-    color: oklch(var(--su));
-    font-size: 0.6875rem;
-    cursor: pointer;
-  }
-
-  .tool-card__submit:hover:not(:disabled) {
-    background: oklch(var(--su) / 0.22);
-    border-color: oklch(var(--su) / 0.7);
-  }
-
-  .tool-card__submit:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 </style>

@@ -31,43 +31,44 @@
 {#if chatModelCatalog.unavailable}
   <OllamaOffline />
 {:else}
-<div class="chat-empty">
-  {#if invokableCount > 0}
-    <Radar size={24} class="chat-empty__icon chat-empty__icon--active" />
-  {:else}
-    <MessageCircleDashed size={24} class="chat-empty__icon" />
-  {/if}
-
-  <p class="chat-empty__title">
+  <div class="chat-empty">
     {#if invokableCount > 0}
-      {invokableCount} tool{invokableCount === 1 ? '' : 's'} ready
-    {:else if detected}
-      WebMCP detected
+      <Radar size={24} class="chat-empty__icon chat-empty__icon--active" />
     {:else}
-      How can I help?
+      <MessageCircleDashed size={24} class="chat-empty__icon" />
     {/if}
-  </p>
 
-  <p class="chat-empty__subtitle">{subtitle}</p>
+    <p class="chat-empty__title">
+      {#if invokableCount > 0}
+        {invokableCount} tool{invokableCount === 1 ? '' : 's'} ready
+      {:else if detected}
+        WebMCP detected
+      {:else}
+        How can I help?
+      {/if}
+    </p>
 
-  <div
-    class="chat-empty__suggestions"
-    role="group"
-    aria-label="Suggested prompts"
-  >
-    {#each suggestions as suggestion (suggestion.id)}
-      <button
-        type="button"
-        class="chat-empty__pill"
-        class:is-tool={suggestion.variant === 'tool'}
-        disabled={busy}
-        onclick={() => void handleSelect(suggestion.prompt)}
-      >
-        {suggestion.label}
-      </button>
-    {/each}
+    <p class="chat-empty__subtitle">{subtitle}</p>
+
+    <div
+      class="chat-empty__suggestions"
+      role="group"
+      aria-label="Suggested prompts"
+    >
+      {#each suggestions as suggestion (suggestion.id)}
+        <button
+          type="button"
+          class="semantic-pill"
+          class:semantic-pill--neutral={suggestion.variant === 'default'}
+          class:semantic-pill--success={suggestion.variant === 'tool'}
+          disabled={busy}
+          onclick={() => void handleSelect(suggestion.prompt)}
+        >
+          {suggestion.label}
+        </button>
+      {/each}
+    </div>
   </div>
-</div>
 {/if}
 
 <style>
@@ -115,42 +116,5 @@
     justify-content: center;
     gap: 0.5rem;
     margin-top: 0.875rem;
-  }
-
-  .chat-empty__pill {
-    padding: 0.1875rem 0.5rem;
-    border: 1px solid color-mix(in oklab, currentColor 14%, transparent);
-    border-radius: 999px;
-    background: color-mix(in oklab, currentColor 5%, transparent);
-    color: inherit;
-    font-size: 0.6875rem;
-    line-height: 1.2;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      border-color 150ms ease,
-      background 150ms ease;
-  }
-
-  .chat-empty__pill:hover:not(:disabled) {
-    border-color: color-mix(in oklab, currentColor 24%, transparent);
-    background: color-mix(in oklab, currentColor 9%, transparent);
-  }
-
-  .chat-empty__pill.is-tool {
-    border-color: oklch(var(--su) / 0.55);
-    background: oklch(var(--su) / 0.14);
-    color: oklch(var(--suc, var(--su)));
-  }
-
-  .chat-empty__pill.is-tool:hover:not(:disabled) {
-    border-color: oklch(var(--su) / 0.7);
-    background: oklch(var(--su) / 0.18);
-    color: oklch(var(--suc, var(--su)));
-  }
-
-  .chat-empty__pill:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
   }
 </style>
