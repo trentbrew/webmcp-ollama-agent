@@ -194,23 +194,25 @@
     return undefined;
   }
 
-  $effect(() => {
-    const el = layoutEl;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
-      isWide = entry.contentRect.width >= WIDE_BREAKPOINT_PX;
-    });
-    observer.observe(el);
-    isWide = el.clientWidth >= WIDE_BREAKPOINT_PX;
-    return () => observer.disconnect();
-  });
+  /**
+   * Crossing the breakpoint swaps `config.root` between a TabGroupConfig and a
+   * SplitConfig. Those have disjoint shapes, so `isWide` and the new root must
+   * land in the same synchronous tick — if a render sees the new width with the
+   * old root (or vice versa) horizon-layout's TabGroup reads `config.tabs` off a
+   * split node and throws "Cannot read properties of undefined (reading
+   * 'undefined')". The `{#key isWide}` below then rebuilds the subtree rather
+   * than re-rendering panes against a node of the other shape.
+   */
+  function applyWidth(next: boolean) {
+    if (next === wasWide) {
+      isWide = next;
+      return;
+    }
+    wasWide = next;
+    isWide = next;
+    const page = get(currentPage);
 
-  $effect(() => {
-    if (isWide === wasWide) return;
-    wasWide = isWide;
-    const page = $currentPage;
-
-    if (isWide) {
+    if (next) {
       const secondary =
         page === 'chat'
           ? lastSecondaryPage
@@ -218,11 +220,22 @@
             ? page
             : lastSecondaryPage;
       if (page !== 'chat') lastSecondaryPage = page;
-      config.root = buildWideRoot(secondary, splitPoint);
+      config = { ...config, root: buildWideRoot(secondary, splitPoint) };
     } else {
-      config.root = buildNarrowRoot(page);
+      config = { ...config, root: buildNarrowRoot(page) };
     }
     lastSyncedPage = page;
+  }
+
+  $effect(() => {
+    const el = layoutEl;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      applyWidth(entry.contentRect.width >= WIDE_BREAKPOINT_PX);
+    });
+    observer.observe(el);
+    applyWidth(el.clientWidth >= WIDE_BREAKPOINT_PX);
+    return () => observer.disconnect();
   });
 
   $effect(() => {
@@ -321,7 +334,9 @@
   class:layout-wrapper--wide={isWide}
   bind:this={layoutEl}
 >
-  <HorizonLayout bind:config {views} />
+  {#key isWide}
+    <HorizonLayout bind:config {views} />
+  {/key}
 </div>
 
 <style>

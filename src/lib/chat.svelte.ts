@@ -355,6 +355,22 @@ async function runTurn(
     const recovered = await tryRecoverAskUserFromAssistant(session, assistantId, requestAbort, iteration);
     if (recovered) return;
 
+    // No tool calls, no text, no reasoning: the turn produced nothing at all.
+    // Falling through to 'ready' here leaves an empty bubble and reads as the
+    // agent silently giving up, so surface it as the failure it is.
+    const message = getAssistantMessage(session, assistantId);
+    const producedNothing =
+      !message || (!getMessageText(message).trim() && !getMessageReasoning(message).trim());
+
+    if (producedNothing) {
+      session.status = 'error';
+      session.error =
+        'The model returned an empty response. This usually means the request was cut short — check that Ollama is still running, and try turning off "Expose tools to agent" or trimming the page tool surface if the page registers a lot of tools.';
+      session.updatedAt = Date.now();
+      persistSession(session);
+      return;
+    }
+
     session.status = 'ready';
     session.updatedAt = Date.now();
     persistSession(session);
@@ -662,13 +678,19 @@ async function runAgentTool(name: string, args: unknown): Promise<{ ok: boolean;
   const traceId = crypto.randomUUID();
   const tabId = mcpState.tabId ?? browserContext.activeTab?.id ?? 0;
 
-  if (isBuiltinTool(name)) {
+  // WebMCP page tools are dispatched via runTool(), which owns its own pending ->
+  // finalized trace through the background call round-trip. Everything else the
+  // agent runs synchronously here (builtin, browser, trellis) records its own
+  // pending + finalized trace so it streams live into the Traces tab.
+  const dispatchedViaRunTool = !isBuiltinTool(name) && !isTrellisTool(name) && !isBrowserTool(name);
+
+  if (!dispatchedViaRunTool) {
     appendPendingTrace(traceId, tabId, name, args, 'agent');
   }
 
   const result = await executeAgentTool(name, args);
   const trace = {
-    id: isBuiltinTool(name) ? traceId : crypto.randomUUID(),
+    id: dispatchedViaRunTool ? crypto.randomUUID() : traceId,
     tabId,
     toolName: name,
     origin: toolOrigin(name),
@@ -681,7 +703,7 @@ async function runAgentTool(name: string, args: unknown): Promise<{ ok: boolean;
     source: 'agent' as const,
   };
 
-  if (isBuiltinTool(name)) {
+  if (!dispatchedViaRunTool) {
     void appendLocalTrace(trace);
   }
   void recordToolTraceInTrellis(trace);

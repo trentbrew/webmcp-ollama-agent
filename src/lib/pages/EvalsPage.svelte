@@ -7,11 +7,13 @@
     Play,
     Plus,
     Square,
+    Terminal,
   } from '../icons';
   import CaseCard from '../components/evals/CaseCard.svelte';
   import CaseDetail from '../components/evals/CaseDetail.svelte';
   import CaseEditor from '../components/evals/CaseEditor.svelte';
   import { navigateTo } from '../stores/navigation';
+  import { getChat } from '../chat.svelte';
   import { initMcpTracking, mcpState } from '../webmcp/store.svelte';
   import { resultStatus, type EvalCase } from '../evals/protocol';
   import { hasDrift, isBlockingDrift } from '../evals/surface';
@@ -108,6 +110,63 @@
     try {
       await navigator.clipboard.writeText(exportCasesJson(origin));
       notice = `Copied ${cases.length} case${cases.length === 1 ? '' : 's'} as JSON.`;
+    } catch {
+      notice = 'Could not reach the clipboard.';
+    }
+  }
+
+  // Guard serialization against non-JSON values (bigint, undefined) so the
+  // clipboard report never silently fails on an odd part in the transcript.
+  function safeJson(value: unknown): string {
+    return JSON.stringify(
+      value,
+      (_key, field: unknown) =>
+        typeof field === 'bigint'
+          ? field.toString()
+          : field === undefined
+            ? null
+            : field,
+      2,
+    );
+  }
+
+  async function copyAllData() {
+    try {
+      const tools = pageTools();
+      const chat = getChat();
+      const report = {
+        generatedAt: new Date().toISOString(),
+        origin,
+        tabState: {
+          detected: mcpState.state?.detected ?? false,
+          url: mcpState.state?.url ?? null,
+        },
+        transcript: {
+          status: chat.status,
+          messages: chat.messages,
+        },
+        traces: mcpState.traces,
+        tools: tools.map((t) => ({
+          name: t.name,
+          title: t.title,
+          description: t.description,
+          inputSchema: t.inputSchema,
+          annotations: t.annotations,
+          origin: t.origin,
+          invokable: t.invokable,
+        })),
+        evals: {
+          cases,
+          results: cases.map((c) => ({
+            id: c.id,
+            result: evalState.results[c.id],
+          })),
+          settings: evalState.settings,
+        },
+      };
+      const text = safeJson(report);
+      await navigator.clipboard.writeText(text);
+      notice = 'Debug report copied to clipboard.';
     } catch {
       notice = 'Could not reach the clipboard.';
     }
@@ -300,6 +359,14 @@
             onclick={() => void copyExport()}
           >
             <ClipboardCopy size={10} /> Export
+          </button>
+          <button
+            type="button"
+            class="evals-page__link"
+            onclick={() => void copyAllData()}
+            title="Copy traces, tools, evals as a debug report"
+          >
+            <Terminal size={10} /> Debug
           </button>
           <button
             type="button"

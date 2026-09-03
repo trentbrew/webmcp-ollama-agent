@@ -68,6 +68,30 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 const inflight = new Map<string, AbortController>();
 
+/**
+ * MV3 terminates this service worker after 30s of inactivity, and an in-flight
+ * `fetch` does not count as activity. A large tool surface means Ollama can spend
+ * well over 30s in prompt processing before it emits its first token, so without
+ * a heartbeat the worker is killed mid-prefill, the fetch aborts, and Ollama logs
+ * a `500` at exactly 30.00s. Calling an extension API resets the idle timer, so we
+ * tick one while any chat request is outstanding.
+ */
+const KEEPALIVE_INTERVAL_MS = 20_000;
+let keepaliveTimer: ReturnType<typeof setInterval> | undefined;
+
+function syncKeepalive() {
+  if (inflight.size > 0 && keepaliveTimer === undefined) {
+    keepaliveTimer = setInterval(() => {
+      void chrome.runtime.getPlatformInfo().catch(() => {});
+    }, KEEPALIVE_INTERVAL_MS);
+    return;
+  }
+  if (inflight.size === 0 && keepaliveTimer !== undefined) {
+    clearInterval(keepaliveTimer);
+    keepaliveTimer = undefined;
+  }
+}
+
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== OLLAMA_PORT) return;
 
@@ -75,6 +99,7 @@ chrome.runtime.onConnect.addListener((port) => {
     if (message.type === 'abort') {
       inflight.get(message.requestId)?.abort();
       inflight.delete(message.requestId);
+      syncKeepalive();
       return;
     }
 
@@ -82,6 +107,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
     const controller = new AbortController();
     inflight.set(message.requestId, controller);
+    syncKeepalive();
 
     void streamChat(message, controller.signal, (event) => {
       try {
@@ -91,12 +117,14 @@ chrome.runtime.onConnect.addListener((port) => {
       }
     }).finally(() => {
       inflight.delete(message.requestId);
+      syncKeepalive();
     });
   });
 
   port.onDisconnect.addListener(() => {
     for (const controller of inflight.values()) controller.abort();
     inflight.clear();
+    syncKeepalive();
   });
 });
 
@@ -218,7 +246,7 @@ async function streamChat(
       return;
     }
 
-    let toolCalls: OllamaToolCall[] | undefined;
+    const toolCallChunks: OllamaToolCall[] = [];
 
     for await (const chunk of readNdjson(response.body)) {
       if (signal.aborted) break;
@@ -231,8 +259,10 @@ async function streamChat(
         if (typeof message.content === 'string' && message.content) {
           emit({ type: 'delta', requestId, text: message.content });
         }
+        // Ollama can spread tool calls across chunks; collecting rather than
+        // replacing keeps every call the model asked for.
         if (message.tool_calls?.length) {
-          toolCalls = message.tool_calls;
+          toolCallChunks.push(...message.tool_calls);
         }
       }
 
@@ -246,12 +276,22 @@ async function streamChat(
       }
 
       if (chunk.done) {
-        emit({ type: 'done', requestId, toolCalls });
+        // `length` means the model was cut off mid-answer, so a missing tool call
+        // is a truncation, not a decision. Report it rather than ending quietly.
+        if (chunk.done_reason === 'length') {
+          emit({
+            type: 'error',
+            requestId,
+            error: 'Ollama stopped at the num_predict limit before finishing. Raise num_predict in Settings, or reduce the tool surface.',
+          });
+          return;
+        }
+        emit({ type: 'done', requestId, toolCalls: toolCallChunks });
         return;
       }
     }
 
-    emit({ type: 'done', requestId, toolCalls });
+    emit({ type: 'done', requestId, toolCalls: toolCallChunks });
   } catch (error) {
     if (signal.aborted) {
       emit({ type: 'error', requestId, error: 'Aborted' });
@@ -277,6 +317,7 @@ type OllamaStreamChunk = {
     tool_calls?: OllamaToolCall[];
   };
   done?: boolean;
+  done_reason?: string;
   error?: string;
 };
 

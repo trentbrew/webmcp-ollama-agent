@@ -71,7 +71,7 @@
           role="status"
           aria-label="Waiting for tool calls"
         >
-          {#each [0, 1, 2] as i (i)}
+          {#each [0] as i (i)}
             <div class="trace-skeleton" aria-hidden="true">
               <div class="trace-skeleton__row">
                 <span class="trace-skeleton__dot"></span>
@@ -86,9 +86,9 @@
               ></div>
             </div>
           {/each}
-          <p class="traces-page__empty-subtitle">
+          <!-- <p class="traces-page__empty-subtitle">
             Agent is thinking — tool calls will stream here as they run.
-          </p>
+          </p> -->
         </div>
       {:else}
         <div class="traces-page__empty surface-dot-matrix">
@@ -193,7 +193,7 @@
     flex-direction: column;
     gap: 0.375rem;
     padding: 0.5rem 0.625rem;
-    border: 1px solid color-mix(in oklab, currentColor 10%, transparent);
+    /* border: 1px solid color-mix(in oklab, currentColor 10%, transparent); */
     border-radius: 0.5rem;
     animation: trace-skeleton-pulse 1.6s ease-in-out infinite;
   }
