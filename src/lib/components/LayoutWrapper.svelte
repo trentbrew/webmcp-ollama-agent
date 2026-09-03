@@ -42,7 +42,7 @@
 
   /** Side panel width at which chat pins left and tools/settings stack right. */
   const WIDE_BREAKPOINT_PX = 560;
-  const DEFAULT_SPLIT = 0.44;
+  const DEFAULT_SPLIT = 0.56;
 
   const pageTitles: Record<string, string> = {
     chat: 'Chat',

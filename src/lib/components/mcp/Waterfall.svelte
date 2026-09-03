@@ -12,11 +12,12 @@
 </script>
 
 <div class="waterfall" style={`height: ${layout.laneCount * rowHeight + 8}px`}>
-  {#each layout.spans as span (span.id)}
+  {#each layout.spans as span (`${span.id}:${span.startMs}`)}
     <div
       class="waterfall-span"
       class:is-error={!span.ok}
       class:is-agent={span.source === 'agent'}
+      class:is-pending={span.pending}
       style={`left: ${(span.startMs / layout.totalMs) * 100}%; width: ${Math.max((span.durationMs / layout.totalMs) * 100, 0.5)}%; top: ${span.lane * rowHeight}px;`}
       title={`${span.label} — ${formatWaterfallDuration(span.durationMs)}${span.ok ? '' : ' (error)'}`}
     >
@@ -57,6 +58,18 @@
 
   .waterfall-span.is-error {
     background: oklch(var(--er) / 0.6);
+  }
+
+  .waterfall-span.is-pending {
+    background: oklch(var(--p) / 0.35);
+    border: 1px dashed oklch(var(--p) / 0.65);
+    animation: waterfall-pending-pulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes waterfall-pending-pulse {
+    50% {
+      opacity: 0.65;
+    }
   }
 
   .waterfall-span__label {

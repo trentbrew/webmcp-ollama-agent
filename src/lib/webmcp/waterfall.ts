@@ -1,4 +1,5 @@
 import type { ToolCallTrace } from './protocol';
+import { normalizeTraces } from './traces';
 
 export type WaterfallSpan = {
   id: string;
@@ -8,13 +9,15 @@ export type WaterfallSpan = {
   lane: number;
   ok: boolean;
   source: 'manual' | 'agent';
+  pending?: boolean;
 };
 
 /** Lays out trace entries as lane-packed horizontal bars (overlapping calls get separate lanes). */
 export function buildWaterfall(traces: ToolCallTrace[]): { spans: WaterfallSpan[]; totalMs: number; laneCount: number } {
-  if (traces.length === 0) return { spans: [], totalMs: 0, laneCount: 0 };
+  const valid = normalizeTraces(traces);
+  if (valid.length === 0) return { spans: [], totalMs: 0, laneCount: 0 };
 
-  const sorted = [...traces].sort((a, b) => a.startedAt - b.startedAt);
+  const sorted = [...valid].sort((a, b) => a.startedAt - b.startedAt);
   const origin = sorted[0].startedAt;
   const laneEnds: number[] = [];
 
@@ -28,7 +31,16 @@ export function buildWaterfall(traces: ToolCallTrace[]): { spans: WaterfallSpan[
     } else {
       laneEnds[lane] = startMs + durationMs;
     }
-    return { id: trace.id, label: trace.toolName, startMs, durationMs, lane, ok: trace.ok, source: trace.source };
+    return {
+      id: trace.id,
+      label: trace.toolName,
+      startMs,
+      durationMs,
+      lane,
+      ok: trace.ok,
+      source: trace.source,
+      pending: trace.pending,
+    };
   });
 
   const totalMs = Math.max(100, ...spans.map((span) => span.startMs + span.durationMs));

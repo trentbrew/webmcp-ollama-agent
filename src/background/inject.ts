@@ -49,7 +49,21 @@ export async function injectExistingTabs() {
     return;
   }
 
-  await Promise.all(
-    tabs.map((tab) => (typeof tab.id === 'number' ? injectIntoTab(tab.id) : Promise.resolve())),
+  // Bounds the burst of chrome.scripting.executeScript calls. With hundreds of
+  // restored tabs, firing them all at once competes with the browser's own session
+  // restore and stalls the service worker right after startup. A small pool keeps
+  // the boot warm-up smooth instead of a spike.
+  const CONCURRENCY = 8;
+  let index = 0;
+  const workers = Array.from(
+    { length: Math.min(CONCURRENCY, tabs.length) },
+    () =>
+      (async () => {
+        while (index < tabs.length) {
+          const tab = tabs[index++];
+          if (typeof tab.id === 'number') await injectIntoTab(tab.id);
+        }
+      })(),
   );
+  await Promise.all(workers);
 }

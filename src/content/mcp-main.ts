@@ -196,6 +196,7 @@ function watch(target: object, key: 'modelContext') {
   queueMicrotask(tryWrap);
   setTimeout(tryWrap, 0);
 
+  let trapInstalled = true;
   try {
     let value = (target as Record<string, unknown>)[key] as ModelContextLike | undefined;
     Object.defineProperty(target, key, {
@@ -211,13 +212,21 @@ function watch(target: object, key: 'modelContext') {
     });
   } catch {
     // Property already non-configurable -- the poll below is the fallback.
+    trapInstalled = false;
   }
 
+  // With a working accessor trap, a late `modelContext` assignment is captured on
+  // `set`, so the poll only needs a short grace window to catch an assignment that
+  // landed between the probe above and the trap install. If the property was
+  // non-configurable (trap install failed), keep a longer poll as the fallback.
+  // Trim the default case from 80 ticks to avoid ~8s of per-page timer churn that
+  // this injected into every page.
+  const maxAttempts = trapInstalled ? 10 : 80;
   let attempts = 0;
   const interval = setInterval(() => {
     attempts += 1;
     tryWrap();
-    if (attempts > 80) clearInterval(interval);
+    if (attempts >= maxAttempts) clearInterval(interval);
   }, 100);
 }
 

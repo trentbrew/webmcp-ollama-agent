@@ -7,6 +7,7 @@ import {
   type TabMcpState,
   type ToolCallTrace,
 } from './protocol';
+import { isValidTrace, normalizeTrace, normalizeTraces } from './traces';
 
 export const mcpState = $state({
   tabId: null as number | null,
@@ -22,8 +23,32 @@ let initialized = false;
 const pendingRuns = new Map<string, { resolve: (value: { ok: boolean; result?: unknown; error?: string }) => void }>();
 
 function appendTraceInMemory(trace: ToolCallTrace) {
-  const withoutDuplicate = mcpState.traces.filter((entry) => entry.id !== trace.id);
-  mcpState.traces = [...withoutDuplicate, trace].slice(-200);
+  if (!isValidTrace(trace)) return;
+  const normalized = normalizeTrace(trace);
+  const withoutDuplicate = mcpState.traces.filter((entry) => entry.id !== normalized.id);
+  mcpState.traces = [...withoutDuplicate, normalized].slice(-200);
+}
+
+export function appendPendingTrace(
+  requestId: string,
+  tabId: number,
+  toolName: string,
+  args: unknown,
+  source: 'manual' | 'agent',
+) {
+  const tool = mcpState.state?.tools.find((entry) => entry.name === toolName);
+  appendTraceInMemory({
+    id: requestId,
+    tabId,
+    toolName,
+    origin: tool?.origin ?? mcpState.tabUrl ?? 'unknown',
+    args,
+    ok: true,
+    startedAt: Date.now(),
+    durationMs: 0,
+    source,
+    pending: true,
+  });
 }
 
 function isExtensionRuntime() {
@@ -46,7 +71,7 @@ function connect() {
       return;
     }
     if (message.type === 'trace-snapshot') {
-      if (message.tabId === mcpState.tabId) mcpState.traces = message.traces;
+      if (message.tabId === mcpState.tabId) mcpState.traces = normalizeTraces(message.traces);
       return;
     }
     if (message.type === 'trace-appended') {
@@ -163,6 +188,8 @@ export function runTool(name: string, args: unknown, source: 'manual' | 'agent' 
 
   const requestId = crypto.randomUUID();
   const tabId = mcpState.tabId;
+
+  appendPendingTrace(requestId, tabId, name, args, source);
 
   return new Promise((resolve) => {
     pendingRuns.set(requestId, { resolve });

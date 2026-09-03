@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebMCP — Empty-state dot matrix (design preview)</title>
+  <style>
+    :root {
+      --b1: 22% 0.02 260;
+      --b2: 26% 0.02 260;
+      --b3: 30% 0.02 260;
+      --bc: 92% 0.01 260;
+      --p: 62% 0.18 25;
+      --dot: color-mix(in oklab, currentColor 8%, transparent);
+      --dot-strong: color-mix(in oklab, currentColor 14%, transparent);
+      --border: color-mix(in oklab, oklch(var(--bc)) 12%, transparent);
+      --border-subtle: color-mix(in oklab, oklch(var(--bc)) 8%, transparent);
+      --text-muted: oklch(var(--bc) / 0.65);
+      --chat-font-size: 0.8125rem;
+    }
+    html[data-theme="light"] {
+      --b1: 97% 0.01 100;
+      --b2: 94% 0.01 100;
+      --b3: 90% 0.01 100;
+      --bc: 24% 0.02 260;
+      --p: 48% 0.16 25;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: system-ui, sans-serif; font-size: var(--chat-font-size); background: oklch(var(--b1)); color: oklch(var(--bc)); display: flex; flex-direction: column; align-items: center; padding: 1rem; gap: 1rem; }
+
+    h1 { font-size: 0.75rem; font-weight: 500; opacity: 0.55; margin: 0; letter-spacing: 0.04em; text-transform: uppercase; }
+
+    .controls { display: flex; gap: 0.5rem; align-items: center; font-size: 0.75rem; }
+    .controls label { display: inline-flex; align-items: center; gap: 0.3rem; opacity: 0.8; }
+    .controls input { accent-color: oklch(var(--p)); }
+
+    .panel { width: 100%; max-width: 420px; height: 640px; border: 1px solid var(--border); border-radius: 12px; background: oklch(var(--b2)); display: flex; flex-direction: column; overflow: hidden; }
+
+    .nav { display: flex; gap: 0.25rem; padding: 0.5rem; border-bottom: 1px solid var(--border-subtle); font-size: 0.6875rem; }
+    .nav span { padding: 0.25rem 0.5rem; border-radius: 4px; opacity: 0.5; }
+    .nav span.active { background: oklch(var(--p) / 0.15); opacity: 1; color: oklch(var(--p)); }
+
+    .status { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.625rem; border-bottom: 1px solid var(--border-subtle); font-size: 0.75rem; }
+    .status .dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: color-mix(in oklab, currentColor 30%, transparent); }
+
+    .empty {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      text-align: center;
+      padding: 1.25rem 1.5rem 2rem;
+    }
+
+    /* The dot-matrix backdrop — the design under review. */
+    .empty.surface-dot-matrix {
+      background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+      background-size: 12px 12px;
+      -webkit-mask-image: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.9) 100%);
+      mask-image: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.9) 100%);
+    }
+
+    .empty .icon { opacity: 0.55; font-size: 1.5rem; line-height: 1; }
+    .empty .title { margin: 0; font-size: 1.125rem; font-weight: 500; }
+    .empty .subtitle { margin: 0; max-width: 20rem; font-size: 0.8125rem; line-height: 1.45; opacity: 0.6; }
+    .empty .pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 0.875rem; }
+    .empty .pill { padding: 0.25rem 0.625rem; border: 1px solid var(--border); border-radius: 999px; font-size: 0.75rem; }
+
+    .compare { display: flex; gap: 0.5rem; width: 100%; max-width: 420px; }
+    .compare .panel { height: 240px; }
+    .compare .mini { flex: 1; }
+  </style>
+</head>
+<body>
+  <h1>Empty-state dot matrix — preview</h1>
+
+  <div class="controls">
+    <label><input type="checkbox" id="dotToggle" checked /> matrix</label>
+    <label><input type="checkbox" id="maskToggle" checked /> center fade</label>
+    <label><input type="checkbox" id="themeToggle" /> light</label>
+  </div>
+
+  <div class="panel" id="main">
+    <div class="nav">
+      <span>Chat</span><span>MCP</span><span class="active">Traces</span><span>Evals</span>
+    </div>
+    <div class="status"><span class="dot"></span><span>No tool calls on this tab</span></div>
+    <div class="empty surface-dot-matrix" id="empty">
+      <div class="icon">∿</div>
+      <p class="title">No tool calls yet</p>
+      <p class="subtitle">Run a tool from the MCP tab or let the agent invoke page tools in chat. Each call appears here as a timeline.</p>
+    </div>
+  </div>
+
+  <div class="compare">
+    <div class="panel mini">
+      <div class="empty surface-dot-matrix">
+        <div class="icon">◈</div>
+        <p class="title">No tools registered yet</p>
+        <p class="subtitle">MCP empty state</p>
+      </div>
+    </div>
+    <div class="panel mini">
+      <div class="empty surface-dot-matrix">
+        <div class="icon">✳</div>
+        <p class="title">How can I help?</p>
+        <p class="subtitle">Chat empty state</p>
+        <div class="pills"><span class="pill">Summarize tab</span><span class="pill">Explore tools</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const dotToggle = document.getElementById('dotToggle');
+    const maskToggle = document.getElementById('maskToggle');
+    const themeToggle = document.getElementById('themeToggle');
+
+    function sync() {
+      const on = dotToggle.checked;
+      document.querySelectorAll('.empty').forEach((el) => {
+        el.classList.toggle('surface-dot-matrix', on);
+        if (!on) el.style.webkitMaskImage = el.style.maskImage = '';
+        else el.style.webkitMaskImage = el.style.maskImage = maskToggle.checked ? '' : 'none';
+      });
+    }
+    dotToggle.addEventListener('change', sync);
+    maskToggle.addEventListener('change', () => {
+      document.querySelectorAll('.empty').forEach((el) => {
+        // Toggle the center-fade mask on/off
+        el.style.webkitMaskImage = el.style.maskImage = maskToggle.checked ? '' : 'none';
+      });
+    });
+    themeToggle.addEventListener('change', () => {
+      document.documentElement.setAttribute('data-theme', themeToggle.checked ? 'light' : 'dark');
+    });
+  </script>
+</body>
+</html>

@@ -93,6 +93,8 @@ export type ToolCallTrace = {
   startedAt: number;
   durationMs: number;
   source: 'manual' | 'agent';
+  /** In-flight tool call — replaced when the background pushes the final trace. */
+  pending?: boolean;
 };
 
 export type PanelToBackground =

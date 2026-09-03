@@ -1,6 +1,6 @@
 <script lang="ts">
   import DOMPurify from 'dompurify';
-  import { ChevronDown, Play, Wrench } from '../../icons';
+  import { ChevronDown, Play } from '../../icons';
   import type { WebMcpToolSummary } from '../../webmcp/protocol';
   import { highlightJson } from '../../jsonHighlight';
   import { runTool } from '../../webmcp/store.svelte';
@@ -17,6 +17,25 @@
     result?: unknown;
     error?: string;
   } | null>(null);
+
+  type ParamInfo = { name: string; required: boolean };
+
+  const params = $derived.by<ParamInfo[]>(() => {
+    const schema = tool.inputSchema as
+      | { properties?: Record<string, unknown>; required?: string[] }
+      | undefined;
+    const properties = schema?.properties;
+    if (!properties || typeof properties !== 'object') return [];
+    const required = new Set(Array.isArray(schema?.required) ? schema.required : []);
+    return Object.keys(properties).map((name) => ({
+      name,
+      required: required.has(name),
+    }));
+  });
+
+  const signature = $derived(`${tool.name}(${params.map((p) => p.name).join(', ')})`);
+
+  const readOnly = $derived(tool.annotations?.readOnlyHint === true);
 
   const schemaHtml = $derived(
     DOMPurify.sanitize(highlightJson(tool.inputSchema ?? {}), {
@@ -53,17 +72,23 @@
 
 <div class="tool-card">
   <div class="tool-card__header">
-    <div class="tool-card__title-row">
-      <Wrench size={13} class="tool-card__wrench" />
-      <span class="tool-card__name">{tool.title || tool.name}</span>
-      {#if !tool.invokable}
-        <span class="tool-card__badge tool-card__badge--muted"
-          >metadata only</span
-        >
-      {/if}
-    </div>
-    <p class="tool-card__description">{tool.description}</p>
+    <span class="tool-card__signature">{signature}</span>
+    {#if readOnly}
+      <span class="tool-card__badge">READ-ONLY</span>
+    {/if}
   </div>
+
+  <p class="tool-card__description">{tool.description}</p>
+
+  {#if params.length > 0}
+    <div class="tool-card__params">
+      {#each params as param (param.name)}
+        <span class="tool-card__param">
+          {param.name}{#if param.required}<span class="tool-card__required">*</span>{/if}
+        </span>
+      {/each}
+    </div>
+  {/if}
 
   <div class="tool-card__actions">
     <button
@@ -130,47 +155,65 @@
   .tool-card {
     display: flex;
     flex-direction: column;
-    gap: 0.375rem;
-    padding: 0.625rem;
-    border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
-    border-radius: 0.5rem;
+    gap: 0.5rem;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid color-mix(in oklab, currentColor 10%, transparent);
+    border-radius: 0.625rem;
+    background: color-mix(in oklab, currentColor 3%, transparent);
   }
 
-  .tool-card__title-row {
+  .tool-card__header {
     display: flex;
-    align-items: center;
-    gap: 0.375rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
   }
 
-  :global(.tool-card__wrench) {
-    flex-shrink: 0;
-    opacity: 0.65;
-    color: oklch(var(--su));
-  }
-
-  .tool-card__name {
+  .tool-card__signature {
+    overflow-wrap: anywhere;
     font-size: 0.8125rem;
     font-weight: 600;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
 
   .tool-card__badge {
-    padding: 0.0625rem 0.375rem;
+    flex-shrink: 0;
+    padding: 0.0625rem 0.4375rem;
+    border: 1px solid color-mix(in oklab, oklch(var(--in, var(--p))) 40%, transparent);
     border-radius: 999px;
-    font-size: 0.625rem;
-    font-weight: 500;
-  }
-
-  .tool-card__badge--muted {
-    background: color-mix(in oklab, currentColor 10%, transparent);
-    opacity: 0.7;
+    background: color-mix(in oklab, oklch(var(--in, var(--p))) 14%, transparent);
+    color: oklch(var(--in, var(--p)));
+    font-size: 0.5625rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
   }
 
   .tool-card__description {
     margin: 0;
     font-size: 0.75rem;
-    line-height: 1.4;
-    opacity: 0.75;
+    line-height: 1.45;
+    opacity: 0.7;
+  }
+
+  .tool-card__params {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .tool-card__param {
+    padding: 0.0625rem 0.5rem;
+    border-radius: 0.375rem;
+    background: color-mix(in oklab, currentColor 8%, transparent);
+    color: oklch(var(--p));
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.6875rem;
+  }
+
+  .tool-card__required {
+    margin-left: 0.0625rem;
+    color: oklch(var(--wa));
   }
 
   .tool-card__actions {

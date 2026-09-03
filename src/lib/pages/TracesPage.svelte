@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { Activity } from '../icons';
   import Waterfall from '../components/mcp/Waterfall.svelte';
+  import TraceLog from '../components/mcp/TraceLog.svelte';
   import { initMcpTracking, mcpState } from '../webmcp/store.svelte';
 
   onMount(() => {
@@ -31,7 +32,7 @@
 
   <div class="traces-page__body">
     {#if isEmpty}
-      <div class="traces-page__empty">
+      <div class="traces-page__empty surface-dot-matrix">
         <Activity size={26} class="traces-page__empty-icon" />
         <p class="traces-page__empty-title">No tool calls yet</p>
         <p class="traces-page__empty-subtitle">
@@ -45,7 +46,10 @@
         </p>
       </div>
     {:else}
-      <Waterfall {traces} />
+      <div class="traces-page__viz">
+        <Waterfall {traces} />
+      </div>
+      <TraceLog {traces} />
     {/if}
   </div>
 </div>
@@ -56,6 +60,7 @@
     height: 100%;
     min-height: 0;
     flex-direction: column;
+    background: #101010;
   }
 
   .traces-page__status {
@@ -88,6 +93,13 @@
     min-height: 0;
     overflow-y: auto;
     padding: 0.625rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .traces-page__viz {
+    flex-shrink: 0;
   }
 
   .traces-page__empty {

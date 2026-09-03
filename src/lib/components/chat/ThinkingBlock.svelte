@@ -26,19 +26,19 @@
   const hasReasoning = $derived(Boolean(trimmed));
   const html = $derived(trimmed ? renderMarkdown(trimmed) : '');
 
-  const visible = $derived(!streaming && hasReasoning);
+  const visible = $derived(hasReasoning || streaming);
+  const label = $derived(streaming ? 'Thinking…' : doneLabel);
 
-  // Collapsed by default. On completion, follows the persisted "keep thinking open" preference.
   let open = $state(false);
-  let wasStreaming = streaming;
+  let prevStreaming = false;
 
   $effect(() => {
     if (streaming) {
       open = true;
-    } else if (wasStreaming && !streaming) {
+    } else if (prevStreaming) {
       open = chatSettings.keepThinkingOpen;
     }
-    wasStreaming = streaming;
+    prevStreaming = streaming;
   });
 </script>
 
@@ -51,18 +51,28 @@
       onclick={() => (open = !open)}
     >
       <Brain size={14} class="chat-thinking-brain" />
-      <span class="chat-thinking-label">{doneLabel}</span>
+      <span class="chat-thinking-label" class:shimmer={streaming}>{label}</span>
       <ChevronDown
         size={13}
         class={`chat-thinking-chevron${open ? ' is-open' : ''}`}
       />
     </button>
-    {#if open && hasReasoning}
+    {#if open && (hasReasoning || streaming)}
       <div
         class="chat-thinking-content"
+        class:is-streaming={streaming}
         transition:slide={{ duration: 220, easing: cubicOut }}
       >
-        <div class="chat-markdown">{@html html}</div>
+        {#if hasReasoning}
+          <div class="chat-markdown">{@html html}</div>
+        {:else if streaming}
+          <span class="chat-thinking-placeholder shimmer"
+            >Waiting for model reasoning…</span
+          >
+        {/if}
+        {#if streaming && hasReasoning}
+          <span class="chat-thinking-cursor" aria-hidden="true">▍</span>
+        {/if}
       </div>
     {/if}
   </div>
@@ -124,5 +134,26 @@
     color: oklch(var(--bc) / 0.7);
     font-size: var(--chat-font-size, 0.8125rem);
     line-height: 1.5;
+  }
+
+  .chat-thinking-content.is-streaming {
+    color: oklch(var(--bc) / 0.82);
+  }
+
+  .chat-thinking-placeholder {
+    opacity: 0.55;
+    font-style: italic;
+  }
+
+  .chat-thinking-cursor {
+    display: inline-block;
+    margin-left: 1px;
+    animation: chat-thinking-cursor-blink 1s step-start infinite;
+  }
+
+  @keyframes chat-thinking-cursor-blink {
+    50% {
+      opacity: 0;
+    }
   }
 </style>

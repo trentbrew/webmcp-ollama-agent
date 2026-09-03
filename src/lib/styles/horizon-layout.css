@@ -4,7 +4,7 @@
 	--hl-foreground: oklch(var(--bc));
 	--hl-primary: oklch(var(--p));
 	--hl-popover: color-mix(in oklab, oklch(var(--b2)) 82%, transparent);
-	--hl-border: oklch(var(--bc) / 0.14);
+	--hl-border: color-mix(in oklab, currentColor 12%, transparent);
 	--hl-card: oklch(var(--b1));
 	--hl-secondary: oklch(var(--b2));
 	--hl-muted-foreground: oklch(var(--bc) / 0.65);
@@ -112,18 +112,18 @@ div[data-theme='light'] .horizon-layout {
 	left: 50%;
 	transform: translate(-50%, -50%);
 	border-radius: 100vmax;
-	background: var(--hl-primary);
+	background: oklch(var(--hl-primary));
 	opacity: 0;
 	transition: opacity 100ms ease;
 }
 
 .horizon-layout-split__resizer--horizontal .horizon-layout-split__resizer-handle::before {
-	width: 2px;
+	width: 1px;
 	height: calc(100% - 16px);
 }
 
 .horizon-layout-split__resizer--vertical .horizon-layout-split__resizer-handle::before {
-	height: 2px;
+	height: 1px;
 	width: calc(100% - 16px);
 }
 

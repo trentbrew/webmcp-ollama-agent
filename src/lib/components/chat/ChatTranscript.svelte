@@ -10,6 +10,14 @@
     const session = getChat();
     void session.messages.length;
     void session.status;
+    const last = session.messages.at(-1);
+    if (last) {
+      void last.parts.length;
+      for (const part of last.parts) {
+        if (part.type === 'text' || part.type === 'reasoning')
+          void part.text.length;
+      }
+    }
     return session;
   });
 
@@ -51,6 +59,14 @@
     // Track message content and status so autoscroll fires on streaming deltas too.
     void messages.length;
     void messages.at(-1)?.parts.length;
+    void messages.at(-1)?.parts.at(-1)?.type;
+    const lastPart = messages.at(-1)?.parts.at(-1);
+    if (
+      lastPart &&
+      (lastPart.type === 'text' || lastPart.type === 'reasoning')
+    ) {
+      void lastPart.text.length;
+    }
     void chat.status;
     if (!viewport || !stickToBottom) return;
     queueMicrotask(() => {

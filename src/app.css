@@ -63,7 +63,7 @@ main {
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
-  color: transparent;
+  -webkit-text-fill-color: transparent;
   animation: chat-shimmer 1.6s linear infinite;
 }
 
@@ -74,6 +74,41 @@ main {
   100% {
     background-position: -200% 0;
   }
+}
+
+/* Empty-state dot-matrix backdrop — see docs/artifacts/empty_state_dot_matrix_design.md.
+   Painted on a ::before so the mask shapes only the dots, never the icon/title/
+   subtitle sitting on top (a mask on the container itself would fade the content too).
+   z-index:-1 keeps it behind content but above the parent's surface background.
+   Vignette is inverted: dots are densest at the center and fade out toward the edges. */
+.surface-dot-matrix {
+  position: relative;
+  isolation: isolate;
+}
+
+.surface-dot-matrix::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(
+    color-mix(in oklab, currentColor 8%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 12px 12px;
+  -webkit-mask-image: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.75) 40%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.75) 40%,
+    transparent 100%
+  );
 }
 
 /* Shared "thread" card language — mirrors the chat message bubble: a subtle

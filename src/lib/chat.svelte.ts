@@ -38,7 +38,7 @@ import { browserContext } from './browser/context.svelte';
 import { isBrowserTool, runBrowserTool } from './browser/tools';
 import { recordToolTraceInTrellis } from './trellis/audit';
 import { isTrellisTool, runTrellisTool } from './trellis/tools';
-import { appendLocalTrace, mcpState, runTool } from './webmcp/store.svelte';
+import { appendLocalTrace, appendPendingTrace, mcpState, runTool } from './webmcp/store.svelte';
 import {
   CLARIFY_NUDGE_MESSAGE,
   isPageWriteTool,
@@ -659,10 +659,17 @@ function markQuestionnaireAnswered(
 
 async function runAgentTool(name: string, args: unknown): Promise<{ ok: boolean; result?: unknown; error?: string }> {
   const startedAt = Date.now();
+  const traceId = crypto.randomUUID();
+  const tabId = mcpState.tabId ?? browserContext.activeTab?.id ?? 0;
+
+  if (isBuiltinTool(name)) {
+    appendPendingTrace(traceId, tabId, name, args, 'agent');
+  }
+
   const result = await executeAgentTool(name, args);
   const trace = {
-    id: crypto.randomUUID(),
-    tabId: mcpState.tabId ?? browserContext.activeTab?.id ?? 0,
+    id: isBuiltinTool(name) ? traceId : crypto.randomUUID(),
+    tabId,
     toolName: name,
     origin: toolOrigin(name),
     args,

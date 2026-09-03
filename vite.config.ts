@@ -1,6 +1,16 @@
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+
+// `trellis` is a linked (`link:`) dependency. Its dist bundles a bare
+// `await import("sql.js")`, but sql.js is only installed under this project's
+// node_modules — it is not reachable from trellis-node's own install tree, so
+// Rollup cannot resolve it on its own. Point the bare specifier at our pinned
+// browser-safe copy (sql-wasm-browser.js, the variant Vite picks for browser
+// builds) so the linked package can bundle without re-resolving from its home.
+const require = createRequire(import.meta.url);
+const sqlJs = resolve(dirname(require.resolve('sql.js')), 'sql-wasm-browser.js');
 
 export default defineConfig({
   plugins: [svelte()],
@@ -15,6 +25,9 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/ollama/, ''),
       },
     },
+  },
+  resolve: {
+    alias: [{ find: /^sql\.js$/, replacement: sqlJs }],
   },
   build: {
     outDir: 'dist',

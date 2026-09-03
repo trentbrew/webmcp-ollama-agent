@@ -235,7 +235,7 @@
 
     <div class="evals-page__body">
       {#if cases.length === 0}
-        <div class="evals-page__empty">
+        <div class="evals-page__empty surface-dot-matrix">
           <FlaskConical size={26} class="evals-page__empty-icon" />
           <p class="evals-page__empty-title">No cases yet</p>
           <p class="evals-page__empty-subtitle">
@@ -341,6 +341,7 @@
     height: 100%;
     min-height: 0;
     flex-direction: column;
+    background: #101010;
   }
 
   .evals-page__status {

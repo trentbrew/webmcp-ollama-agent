@@ -140,7 +140,9 @@
     flex-shrink: 0;
     align-items: center;
     gap: 0.375rem;
+    min-height: 32px;
     padding: 0.375rem 0.625rem;
+    box-sizing: border-box;
     border-bottom: 1px solid color-mix(in oklab, currentColor 12%, transparent);
     font-size: 0.6875rem;
     opacity: 0.75;

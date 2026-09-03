@@ -7,7 +7,11 @@
   const sorted = $derived([...traces].reverse());
 
   function formatTime(ts: number) {
-    return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(new Date(ts));
+    return new Intl.DateTimeFormat(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+    }).format(new Date(ts));
   }
 </script>
 
@@ -15,24 +19,47 @@
   <p class="trace-empty">No tool calls yet.</p>
 {:else}
   <div class="trace-log">
-    {#each sorted as trace (trace.id)}
-      <div class="trace-entry" class:is-error={!trace.ok}>
+    {#each sorted as trace (`${trace.id}:${trace.startedAt}`)}
+      <div
+        class="trace-entry"
+        class:is-error={!trace.ok}
+        class:is-pending={trace.pending}
+      >
         <div class="trace-entry__row">
-          {#if trace.ok}
-            <CheckCircle2 size={12} class="trace-entry__icon trace-entry__icon--ok" />
+          {#if trace.pending}
+            <span
+              class="trace-entry__icon trace-entry__icon--pending"
+              aria-hidden="true">…</span
+            >
+          {:else if trace.ok}
+            <CheckCircle2
+              size={12}
+              class="trace-entry__icon trace-entry__icon--ok"
+            />
           {:else}
-            <XCircle size={12} class="trace-entry__icon trace-entry__icon--err" />
+            <XCircle
+              size={12}
+              class="trace-entry__icon trace-entry__icon--err"
+            />
           {/if}
           <span class="trace-entry__name">{trace.toolName}</span>
           <span class="trace-entry__source">{trace.source}</span>
           <span class="trace-entry__time">{formatTime(trace.startedAt)}</span>
-          <span class="trace-entry__duration">{Math.round(trace.durationMs)}ms</span>
+          <span class="trace-entry__duration"
+            >{trace.pending
+              ? 'running…'
+              : `${Math.round(trace.durationMs)}ms`}</span
+          >
         </div>
         <pre class="trace-entry__args">args: {JSON.stringify(trace.args)}</pre>
-        {#if trace.ok}
+        {#if trace.pending}
+          <pre
+            class="trace-entry__result trace-entry__result--pending">in progress…</pre>
+        {:else if trace.ok}
           <pre class="trace-entry__result">{JSON.stringify(trace.result)}</pre>
         {:else}
-          <pre class="trace-entry__result trace-entry__result--error">{trace.error}</pre>
+          <pre
+            class="trace-entry__result trace-entry__result--error">{trace.error}</pre>
         {/if}
       </div>
     {/each}
@@ -64,6 +91,11 @@
     border-color: color-mix(in oklab, oklch(var(--er)) 35%, transparent);
   }
 
+  .trace-entry.is-pending {
+    border-color: color-mix(in oklab, oklch(var(--p)) 35%, transparent);
+    opacity: 0.85;
+  }
+
   .trace-entry__row {
     display: flex;
     align-items: center;
@@ -73,6 +105,12 @@
 
   :global(.trace-entry__icon--ok) {
     color: oklch(var(--su, var(--p)));
+  }
+
+  .trace-entry__icon--pending {
+    color: oklch(var(--p));
+    font-weight: 700;
+    line-height: 1;
   }
 
   :global(.trace-entry__icon--err) {
@@ -119,5 +157,10 @@
   .trace-entry__result--error {
     color: oklch(var(--er));
     opacity: 1;
+  }
+
+  .trace-entry__result--pending {
+    opacity: 0.55;
+    font-style: italic;
   }
 </style>
