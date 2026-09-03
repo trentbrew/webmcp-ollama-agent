@@ -61,8 +61,8 @@ status:
         echo "❌ dist/ not found (not built)"; \
     fi
 
-# Prepare for publishing to Chrome Web Store
-prepare-publish: clean build-prod
+# Build and zip the project for the Chrome Web Store
+publish: clean build-prod
     @echo ""
     @echo "📦 Preparing for Chrome Web Store..."
     @echo "===================================="
@@ -79,12 +79,15 @@ prepare-publish: clean build-prod
     @echo ""
     @echo "📦 Package: extension.zip ($(du -sh extension.zip | cut -f1))"
 
+# Alias for `publish` (previous name)
+prepare-publish: publish
+
 # Build store screenshots + promo tiles from ~/Downloads/mcp (copy-only; never edits sources)
 store-assets:
     @node scripts/store-assets.mjs
 
-# Create a production build and package it
-package: prepare-publish
+# Alias for `publish`
+package: publish
 
 # Lint and format check
 lint:
@@ -175,7 +178,7 @@ publish-help:
     @echo "=================================="
     @echo ""
     @echo "1. Prepare your extension:"
-    @echo "   just prepare-publish"
+    @echo "   just publish"
     @echo ""
     @echo "2. Go to Chrome Web Store Developer Dashboard:"
     @echo "   https://chrome.google.com/webstore/devconsole"

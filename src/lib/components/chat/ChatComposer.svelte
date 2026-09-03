@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     ArrowUp,
+    Camera,
     ChevronDown,
     ExternalLink,
     Paperclip,
@@ -55,6 +56,7 @@
   let fileInput: HTMLInputElement | undefined;
   let textarea: HTMLTextAreaElement | undefined;
   let modelMenuOpen = $state(false);
+  let capturingScreenshot = $state(false);
   let toolsMenuOpen = $state(false);
   let resumableSessions = $state<ResumableSession[]>([]);
   let sessionPickerIndex = $state(0);
@@ -224,8 +226,60 @@
     input.value = '';
   }
 
+  function handlePaste(event: ClipboardEvent) {
+    const pastedFiles: File[] = [];
+    const items = event.clipboardData?.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) pastedFiles.push(file);
+        }
+      }
+    }
+    // Fallback for browsers that only populate clipboardData.files
+    if (pastedFiles.length === 0 && event.clipboardData?.files) {
+      for (const file of [...event.clipboardData.files]) {
+        if (file.type.startsWith('image/')) pastedFiles.push(file);
+      }
+    }
+
+    // No image in the paste — let normal text paste through untouched.
+    if (pastedFiles.length === 0) return;
+
+    event.preventDefault();
+    pendingFiles = [...pendingFiles, ...pastedFiles];
+  }
+
   function removePendingFile(index: number) {
     pendingFiles = pendingFiles.filter((_, i) => i !== index);
+  }
+
+  async function captureScreenshot() {
+    if (capturingScreenshot || busy) return;
+    capturingScreenshot = true;
+    try {
+      if (typeof chrome === 'undefined' || !chrome.runtime?.id) return;
+      const res = (await chrome.runtime.sendMessage({ type: 'capture-screenshot' })) as
+        | { ok: true; dataUrl: string }
+        | { ok: false; error: string }
+        | undefined;
+      if (!res?.ok || !('dataUrl' in res) || !res.dataUrl) {
+        console.warn('screenshot capture failed', res);
+        return;
+      }
+      const blobRes = await fetch(res.dataUrl);
+      const blob = await blobRes.blob();
+      const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
+      pendingFiles = [...pendingFiles, file];
+      // Focus composer so user can immediately type context for the screenshot
+      textarea?.focus();
+    } catch (error) {
+      console.warn('screenshot capture failed', error);
+    } finally {
+      capturingScreenshot = false;
+    }
   }
 
   function filesToFileList(files: File[]) {
@@ -497,6 +551,7 @@
       onkeyup={updateCursor}
       onselect={updateCursor}
       onkeydown={handleKeydown}
+      onpaste={handlePaste}
     ></textarea>
   </div>
 
@@ -648,6 +703,16 @@
     </div>
 
     <div class="flex gap-2 align-center">
+      <button
+        type="button"
+        class="chat-composer__icon-btn"
+        aria-label="Capture screenshot of active tab"
+        title="Capture screenshot of active tab"
+        disabled={busy || capturingScreenshot}
+        onclick={captureScreenshot}
+      >
+        <Camera size={14} />
+      </button>
       <button
         type="button"
         class="chat-composer__icon-btn"

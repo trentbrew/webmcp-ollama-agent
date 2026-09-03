@@ -50,7 +50,7 @@ user's locally configured model.
 
 ## Listing copy
 
-**Name:** WebMCP Agent Substrate
+**Name:** WebMCP Local Agent
 
 **Short description (132 char max):**
 
@@ -62,6 +62,13 @@ user's locally configured model.
 **Notes on positioning:** the search term people use after a frustrating hour is
 "WebMCP inspector." Existing inspectors all require a cloud API key; the local
 model is the differentiator and belongs in the first sentence.
+
+**Why there's no login, no cloud, and no provider token:** the agent uses a model
+you run yourself (Ollama). There are no accounts, no sign-in, no paid tiers
+gated behind a login, no forwarding of prompts to a hosted model, and no
+developer-operated server. Nothing in the product withholds a feature until you
+hand over credentials — the differentiator reviewers ask about most for
+extension agents.
 
 ## Pre-submission checklist
 

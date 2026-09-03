@@ -52,9 +52,12 @@ function stateKey(tabId: number) {
 // The MV3 service worker loses all in-memory maps when it spins down. Persist the
 // per-tab state so a panel that subscribes after a SW restart gets the real tool
 // list instead of an empty state (while the retained toolbar badge shows a count).
+// Persist and reads must outlive a browser restart, exactly like the chat thread
+// (which survives via the panel's localStorage). chrome.storage.session is wiped
+// on restart, so traces and per-tab tool state go to chrome.storage.local.
 function persistState(tabId: number, state: TabMcpState) {
   try {
-    void chrome.storage.session.set({ [stateKey(tabId)]: state });
+    void chrome.storage.local.set({ [stateKey(tabId)]: state });
   } catch {
     // Best-effort persistence only.
   }
@@ -65,7 +68,7 @@ async function loadState(tabId: number): Promise<TabMcpState | undefined> {
   if (cached) return cached;
   try {
     const key = stateKey(tabId);
-    const stored = await chrome.storage.session.get(key);
+    const stored = await chrome.storage.local.get(key);
     const state = stored[key] as TabMcpState | undefined;
     if (state) {
       tabStates.set(tabId, state);
@@ -104,7 +107,7 @@ async function loadTraces(tabId: number): Promise<ToolCallTrace[]> {
   if (cached) return cached;
   try {
     const key = `webmcp:traces:${tabId}`;
-    const stored = await chrome.storage.session.get(key);
+    const stored = await chrome.storage.local.get(key);
     const list = (stored[key] as ToolCallTrace[] | undefined) ?? [];
     traces.set(tabId, list);
     return list;
@@ -117,7 +120,7 @@ async function loadTraces(tabId: number): Promise<ToolCallTrace[]> {
 
 function persistTraces(tabId: number, list: ToolCallTrace[]) {
   try {
-    void chrome.storage.session.set({ [`webmcp:traces:${tabId}`]: list });
+    void chrome.storage.local.set({ [`webmcp:traces:${tabId}`]: list });
   } catch {
     // Best-effort persistence only.
   }
@@ -356,13 +359,27 @@ export function initWebMcp() {
     traces.delete(tabId);
     consoleEntries.delete(tabId);
     tabPorts.delete(tabId);
-    void chrome.storage.session.remove([`webmcp:traces:${tabId}`, stateKey(tabId)]);
+    void chrome.storage.local.remove([`webmcp:traces:${tabId}`, stateKey(tabId)]);
     failPendingCallsForTab(tabId, 'Tab closed.');
   });
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (typeof changeInfo.url !== 'string') return;
     clearTab(tabId, changeInfo.url);
-    failPendingCallsForTab(tabId, 'Page navigated away.');
+    // Navigation is often the *intended* effect of a tool (e.g., ticket-booking
+    // `query_content` updating ?genre=thriller). Failing pending calls with
+    // "Page navigated away." surfaces a false error — the UI you see (CineFlow
+    // filtered to Thriller) is correct. Surface navigation as a success so the
+    // agent can verify new page state instead of retrying/apologizing.
+    for (const [requestId, pending] of [...pendingCalls]) {
+      if (pending.tabId !== tabId) continue;
+      resolvePendingCall(
+        requestId,
+        true,
+        `Page navigated to ${changeInfo.url} while ${pending.toolName} was running — this may be the tool's intended effect. Verify with a read-only tool if needed.`,
+        undefined,
+        Date.now() - pending.startedAt,
+      );
+    }
   });
 }

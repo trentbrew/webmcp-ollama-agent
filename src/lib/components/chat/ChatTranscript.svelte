@@ -143,5 +143,13 @@
     position: sticky;
     top: 0;
     z-index: 20;
+    margin: 0 -16px;
+    padding: 8px 16px 16px;
+    background: linear-gradient(
+      to bottom,
+      var(--surface-shell) 0%,
+      var(--surface-shell) 72%,
+      transparent 100%
+    );
   }
 </style>

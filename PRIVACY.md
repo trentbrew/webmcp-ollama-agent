@@ -1,4 +1,4 @@
-# Privacy Policy — WebMCP Agent Substrate
+# Privacy Policy — WebMCP Local Agent
 
 Last updated: September 2, 2026
 

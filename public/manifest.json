@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "WebMCP Agent Substrate",
+  "name": "WebMCP Local Agent",
   "version": "1.0.1",
-  "description": "WebMCP Agent Substrate — an AI agent in your side panel with WebMCP tool access and local Ollama chat.",
+  "description": "WebMCP Local Agent — an AI agent in your browser side panel with WebMCP tool access and local Ollama chat.",
   "side_panel": {
     "default_path": "index.html"
   },
@@ -11,7 +11,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "WebMCP Agent Substrate",
+    "default_title": "WebMCP Local Agent",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -22,7 +22,7 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
-  "permissions": ["sidePanel", "declarativeNetRequest", "storage", "tabs", "scripting"],
+  "permissions": ["sidePanel", "declarativeNetRequest", "storage", "tabs", "activeTab", "scripting"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*", "http://*/*", "https://*/*"],
   "content_scripts": [
     {

@@ -56,6 +56,7 @@ export {
   FlaskConical,
   ClipboardPaste,
   ClipboardCopy,
+  Camera,
 } from '@lucide/svelte';
 
 // Re-export types

@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { CheckCircle2, XCircle } from '../../icons';
+  import { CheckCircle2, ChevronRight, XCircle } from '../../icons';
   import type { ToolCallTrace } from '../../webmcp/protocol';
+  import { highlightJson } from '../../jsonHighlight';
 
   let { traces }: { traces: ToolCallTrace[] } = $props();
 
-  const sorted = $derived([...traces].reverse());
+  // Chronological (oldest top, newest bottom) to match the chat thread,
+  // so bottom-anchored autoscroll reveals the latest call.
+  const sorted = $derived([...traces].sort((a, b) => a.startedAt - b.startedAt));
 
   function formatTime(ts: number) {
     return new Intl.DateTimeFormat(undefined, {
@@ -12,6 +15,16 @@
       minute: '2-digit',
       second: '2-digit',
     }).format(new Date(ts));
+  }
+
+  function compact(value: unknown): string {
+    if (value === undefined) return '';
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
   }
 </script>
 
@@ -51,15 +64,37 @@
               : `${Math.round(trace.durationMs)}ms`}</span
           >
         </div>
-        <pre class="trace-entry__args">args: {JSON.stringify(trace.args)}</pre>
         {#if trace.pending}
           <pre
             class="trace-entry__result trace-entry__result--pending">in progress…</pre>
-        {:else if trace.ok}
-          <pre class="trace-entry__result">{JSON.stringify(trace.result)}</pre>
         {:else}
-          <pre
-            class="trace-entry__result trace-entry__result--error">{trace.error}</pre>
+          <details class="trace-detail">
+            <summary class="trace-detail__summary">
+              <ChevronRight size={12} class="trace-detail__chevron" />
+              <span class="trace-detail__label">args</span>
+              <span class="trace-detail__preview">{compact(trace.args)}</span>
+            </summary>
+            <pre
+              class="trace-detail__code trace-entry__code">{@html highlightJson(
+                trace.args,
+              )}</pre>
+          </details>
+          {#if trace.ok}
+            <details class="trace-detail">
+              <summary class="trace-detail__summary">
+                <ChevronRight size={12} class="trace-detail__chevron" />
+                <span class="trace-detail__label">result</span>
+                <span class="trace-detail__preview">{compact(trace.result)}</span>
+              </summary>
+              <pre
+                class="trace-detail__code trace-entry__code">{@html highlightJson(
+                  trace.result,
+                )}</pre>
+            </details>
+          {:else if trace.error}
+            <pre
+              class="trace-entry__result trace-entry__result--error">{trace.error}</pre>
+          {/if}
         {/if}
       </div>
     {/each}
@@ -143,15 +178,94 @@
     margin-left: 0.375rem;
   }
 
-  .trace-entry__args,
+  .trace-detail {
+    margin-top: 0.125rem;
+  }
+
+  .trace-detail__summary {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    margin: 0 -0.25rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    list-style: none;
+    min-width: 0;
+  }
+
+  .trace-detail__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .trace-detail__summary::marker {
+    content: '';
+  }
+
+  .trace-detail__summary:hover {
+    background: color-mix(in oklab, currentColor 6%, transparent);
+  }
+
+  :global(.trace-detail__chevron) {
+    flex-shrink: 0;
+    opacity: 0.5;
+    transition: transform 0.15s ease;
+  }
+
+  .trace-detail[open] :global(.trace-detail__chevron) {
+    transform: rotate(90deg);
+  }
+
+  .trace-detail__label {
+    flex-shrink: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    opacity: 0.55;
+  }
+
+  .trace-detail__preview {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    opacity: 0.45;
+  }
+
+  .trace-detail__code,
   .trace-entry__result {
     margin: 0.125rem 0 0;
     overflow-x: auto;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.6875rem;
+    line-height: 1.45;
     white-space: pre-wrap;
     word-break: break-word;
-    opacity: 0.7;
+  }
+
+  .trace-detail__code {
+    padding: 0.375rem 0.5rem 0.375rem 1.375rem;
+    border-radius: 0.375rem;
+    background: color-mix(in oklab, currentColor 6%, transparent);
+  }
+
+  .trace-detail__code :global(.json-key) {
+    color: oklch(var(--p));
+  }
+
+  .trace-detail__code :global(.json-string) {
+    color: oklch(var(--su));
+  }
+
+  .trace-detail__code :global(.json-number) {
+    color: oklch(var(--wa));
+  }
+
+  .trace-detail__code :global(.json-boolean) {
+    color: oklch(var(--in));
+  }
+
+  .trace-detail__code :global(.json-null) {
+    color: oklch(var(--bc) / 0.55);
+    font-style: italic;
   }
 
   .trace-entry__result--error {
