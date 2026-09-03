@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WebMCP Agent Substrate",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "WebMCP Agent Substrate — an AI agent in your side panel with WebMCP tool access and local Ollama chat.",
   "side_panel": {
     "default_path": "index.html"

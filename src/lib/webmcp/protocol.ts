@@ -99,13 +99,11 @@ export type ToolCallTrace = {
 
 export type PanelToBackground =
   | { type: 'subscribe'; tabId: number }
-  | { type: 'nav-summary'; activeTabId: number }
   | { type: 'call-tool'; requestId: string; tabId: number; name: string; args: unknown; source: 'manual' | 'agent' }
   | { type: 'record-trace'; trace: ToolCallTrace };
 
 export type BackgroundToPanel =
   | { type: 'tab-state'; state: TabMcpState }
-  | { type: 'nav-summary'; toolCount: number; traceCount: number }
   | { type: 'trace-snapshot'; tabId: number; traces: ToolCallTrace[] }
   | { type: 'trace-appended'; trace: ToolCallTrace }
   | { type: 'call-tool-result'; requestId: string; ok: boolean; result?: unknown; error?: string }

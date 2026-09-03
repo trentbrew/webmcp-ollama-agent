@@ -44,7 +44,7 @@ const BUILTIN_TOOLS: OllamaTool[] = [
     function: {
       name: BUILTIN_TOOL_NAMES.askUser,
       description:
-        'Present a structured multi-step questionnaire to the user and wait for their answers. Infer values from the user message first; pass inferred values as default on items so the user confirms or edits. Only ask for genuinely ambiguous fields. Use validation for dates and numbers. Returns a JSON object keyed by item name.',
+        'Present a structured multi-step questionnaire to the user and wait for their answers. Infer values from the user message first; pass inferred values as default on items so the user confirms or edits. Only ask your own genuinely ambiguous or un-inferable fields — discrete choices or constrained values. Never restate a page tool\'s required parameter names/types as a form; for an open-ended value you cannot enumerate, reply in plain chat prose instead. Use validation for dates and numbers. Returns a JSON object keyed by item name.',
       parameters: {
         type: 'object',
         required: ['items'],

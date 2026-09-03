@@ -12,7 +12,7 @@ export const CLARIFY_NUDGE_MESSAGE =
   'Clarify required: call ask_user with inferred defaults before retrying this write tool.';
 
 export const WRITE_TOOL_CLARIFY_PREAMBLE =
-  'If required inputs are not explicit in the user message, call ask_user first with inferred defaults — do not guess.';
+  'Do not restate this tool\'s parameter list as a form or ask for its field names verbatim. Infer values from the user message or read current page state first. If only an answer the user knows is missing and you cannot enumerate the options, ask one short question in plain prose — never show a blank schema-shaped form. Use ask_user only when choices are enumerable or the value is constrained.';
 
 export function shouldInjectClarifyNudge(consecutiveWriteErrors: number): boolean {
   return consecutiveWriteErrors >= 2;

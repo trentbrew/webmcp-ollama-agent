@@ -50,4 +50,25 @@ test.describe('ask_user questionnaire', () => {
     await expect(page.getByRole('alert')).toContainText('Departure must be today or later.');
     await expect(page.getByText('What is the outbound date?')).toBeVisible();
   });
+
+  test('submits a custom freehand answer instead of the choices', async ({ page }) => {
+    await page.getByRole('button', { name: 'Type your own answer' }).click();
+    await page.getByLabel('Custom answer').fill('surprise trip');
+    await page.getByRole('button', { name: 'Next' }).click();
+
+    await expect(page.getByText('What is the outbound date?')).toBeVisible();
+    await page.getByLabel('YYYY-MM-DD').fill('2026-10-31');
+    await page.getByRole('button', { name: 'Next' }).click();
+
+    await page.getByLabel('Number of Passengers').fill('2');
+    await page.getByRole('button', { name: 'Submit' }).click();
+
+    await expect
+      .poll(async () => page.evaluate(() => window.__webmcpE2EAnswers))
+      .toEqual({
+        tripType: 'surprise trip',
+        outboundDate: '2026-10-31',
+        passengers: '2',
+      });
+  });
 });

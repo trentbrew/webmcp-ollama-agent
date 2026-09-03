@@ -11,6 +11,8 @@
 // implementation so the page's own behavior (and any native browser agent) is
 // unaffected.
 
+import { extractToolResultError } from '../lib/webmcp/toolResult';
+
 // Idempotency guard. onStartup (and install-time programmatic injection) can run
 // this bundle in a tab that also auto-ran it via manifest content_scripts,
 // double-patching console and re-wrapping modelContext. Bail on a second run.
@@ -318,11 +320,13 @@ async function handleCallTool(requestId: string, name: string, args: unknown) {
 
   try {
     const result = await tool.execute(args, { signal: controller.signal });
+    const toolError = extractToolResultError(result);
     post({
       type: 'tool-result',
       requestId,
-      ok: true,
-      result: toSerializable(result),
+      ok: toolError === null,
+      result: toolError === null ? toSerializable(result) : undefined,
+      error: toolError ?? undefined,
       durationMs: performance.now() - started,
     });
   } catch (error) {

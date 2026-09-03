@@ -208,6 +208,30 @@ describe('validateQuestionnaire', () => {
 
     vi.useRealTimers();
   });
+
+  it('skips value validation for items the user freehand answered', () => {
+    const item: QuestionnaireItem = {
+      name: 'tripType',
+      prompt: 'Trip?',
+      required: true,
+      choices: [
+        { value: 'one-way', label: 'One-way' },
+        { value: 'round-trip', label: 'Round-trip' },
+      ],
+    };
+
+    const result = validateQuestionnaire([item], { tripType: 'surprise trip' }, {
+      skipValueValidationFor: ['tripType'],
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('still requires an answer for a freehand-skipped required item', () => {
+    const result = validateQuestionnaire([sizeItem], {}, {
+      skipValueValidationFor: ['size'],
+    });
+    expect(result.ok).toBe(false);
+  });
 });
 
 describe('isItemAnswered', () => {

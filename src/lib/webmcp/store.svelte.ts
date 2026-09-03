@@ -1,4 +1,3 @@
-import { setNavBadgeCounts } from '../stores/navIndicators.svelte';
 import {
   WEBMCP_PANEL_PORT,
   type BackgroundToPanel,
@@ -62,10 +61,6 @@ function connect() {
   mcpState.connected = true;
 
   port.onMessage.addListener((message: BackgroundToPanel) => {
-    if (message.type === 'nav-summary') {
-      setNavBadgeCounts(message.toolCount, message.traceCount);
-      return;
-    }
     if (message.type === 'tab-state') {
       if (message.state.tabId === mcpState.tabId) mcpState.state = message.state;
       return;
@@ -149,9 +144,6 @@ async function subscribeToActiveTab() {
   mcpState.traces = [];
   mcpState.console = [];
   send({ type: 'subscribe', tabId: tab.id });
-  if (tab.id != null) {
-    send({ type: 'nav-summary', activeTabId: tab.id });
-  }
 }
 
 export function initMcpTracking() {

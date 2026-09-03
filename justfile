@@ -79,6 +79,10 @@ prepare-publish: clean build-prod
     @echo ""
     @echo "📦 Package: extension.zip ($(du -sh extension.zip | cut -f1))"
 
+# Build store screenshots + promo tiles from ~/Downloads/mcp (copy-only; never edits sources)
+store-assets:
+    @node scripts/store-assets.mjs
+
 # Create a production build and package it
 package: prepare-publish
 

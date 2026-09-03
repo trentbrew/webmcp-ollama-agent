@@ -88,38 +88,6 @@ function updateBadge(tabId: number, state: TabMcpState) {
   persistState(tabId, state);
 }
 
-function computeNavSummary(activeTabId: number) {
-  let toolCount = 0;
-  let traceCount = 0;
-  for (const [tabId, state] of tabStates) {
-    if (tabId === activeTabId) continue;
-    toolCount += state.tools.length;
-  }
-  for (const [tabId, list] of traces) {
-    if (tabId === activeTabId) continue;
-    traceCount += list.length;
-  }
-  return { toolCount, traceCount };
-}
-
-function pushNavSummary(activeTabId: number) {
-  const { toolCount, traceCount } = computeNavSummary(activeTabId);
-  for (const [port, subscribedTabId] of panelSubscriptions) {
-    if (subscribedTabId !== activeTabId) continue;
-    try {
-      port.postMessage({ type: 'nav-summary', toolCount, traceCount } satisfies BackgroundToPanel);
-    } catch {
-      panelSubscriptions.delete(port);
-    }
-  }
-}
-
-function pushNavSummaryToAllPanels() {
-  for (const [, activeTabId] of panelSubscriptions) {
-    pushNavSummary(activeTabId);
-  }
-}
-
 function pushToPanels(tabId: number, message: BackgroundToPanel) {
   for (const [port, subscribedTabId] of panelSubscriptions) {
     if (subscribedTabId !== tabId) continue;
@@ -161,7 +129,6 @@ async function appendTrace(entry: ToolCallTrace) {
   while (list.length > TRACE_LIMIT) list.shift();
   persistTraces(entry.tabId, list);
   pushToPanels(entry.tabId, { type: 'trace-appended', trace: entry });
-  pushNavSummaryToAllPanels();
 }
 
 function clearTab(tabId: number, url: string | null) {
@@ -173,7 +140,6 @@ function clearTab(tabId: number, url: string | null) {
   pushToPanels(tabId, { type: 'tab-state', state: tabStates.get(tabId)! });
   pushToPanels(tabId, { type: 'trace-snapshot', tabId, traces: [] });
   pushToPanels(tabId, { type: 'console-snapshot', tabId, entries: [] });
-  pushNavSummaryToAllPanels();
 }
 
 function appendConsoleEntry(tabId: number, entry: ConsoleEntry) {
@@ -231,7 +197,6 @@ function handleTabPortMessage(tabId: number, message: BridgeToBackground) {
     tabStates.set(tabId, state);
     updateBadge(tabId, state);
     pushToPanels(tabId, { type: 'tab-state', state });
-    pushNavSummaryToAllPanels();
     return;
   }
 
@@ -299,12 +264,6 @@ function handlePanelMessage(port: chrome.runtime.Port, message: PanelToBackgroun
     } catch {
       // Panel closed already.
     }
-    pushNavSummary(message.tabId);
-    return;
-  }
-
-  if (message.type === 'nav-summary') {
-    pushNavSummary(message.activeTabId);
     return;
   }
 
@@ -399,7 +358,6 @@ export function initWebMcp() {
     tabPorts.delete(tabId);
     void chrome.storage.session.remove([`webmcp:traces:${tabId}`, stateKey(tabId)]);
     failPendingCallsForTab(tabId, 'Tab closed.');
-    pushNavSummaryToAllPanels();
   });
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {

@@ -543,12 +543,17 @@ export function filterAnswersForSubmit(
 export function validateQuestionnaire(
   items: QuestionnaireItem[],
   answers: QuestionnaireAnswers,
+  options?: { skipValueValidationFor?: Iterable<string> },
 ): { ok: true } | { ok: false; error: string; itemName?: string } {
+  const skipValueValidation = options?.skipValueValidationFor
+    ? new Set(options.skipValueValidationFor)
+    : undefined;
   for (const item of getVisibleItems(items, answers)) {
     if (!item.required) continue;
     if (!isItemAnswered(item, answers)) {
       return { ok: false, error: `Answer required: ${item.prompt}`, itemName: item.name };
     }
+    if (skipValueValidation?.has(item.name)) continue;
     const valueCheck = validateItemValue(item, answers[item.name]);
     if (!valueCheck.ok) {
       return { ok: false, error: valueCheck.error, itemName: item.name };

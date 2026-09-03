@@ -14,7 +14,7 @@
     type QuestionnaireAnswers,
     type QuestionnaireItem,
   } from '../../ai/questionnaire';
-  import { submitQuestionnaireAnswers } from '../../chat.svelte';
+  import { cancelChat, submitQuestionnaireAnswers } from '../../chat.svelte';
   import Button from '../ui/Button.svelte';
 
   let {
@@ -34,6 +34,8 @@
   let seededQuestionnaireId = $state<string | null>(null);
   let error = $state<string | null>(null);
   let submitting = $state(false);
+  let freehandNames = $state<Set<string>>(new Set());
+  let freehandText = $state('');
 
   $effect(() => {
     if (seededQuestionnaireId === part.id) return;
@@ -43,6 +45,9 @@
 
   const visibleItems = $derived(getVisibleItems(items, answers));
   const current = $derived(visibleItems[step] ?? visibleItems[0]);
+  const freehandActive = $derived(
+    current ? freehandNames.has(current.name) : false,
+  );
   const inputAttrs = $derived(current ? inputHtmlAttrs(current) : {});
   const progressLabel = $derived(
     visibleItems.length > 0
@@ -75,6 +80,7 @@
     } else {
       answers = { ...answers, [item.name]: value };
     }
+    clearFreehand(item.name);
     error = null;
   }
 
@@ -88,12 +94,69 @@
   function setInput(item: QuestionnaireItem, value: string) {
     if (readOnly) return;
     answers = { ...answers, [item.name]: value };
+    clearFreehand(item.name);
     error = null;
+  }
+
+  function clearFreehand(name: string) {
+    if (!freehandNames.has(name)) return;
+    const next = new Set(freehandNames);
+    next.delete(name);
+    freehandNames = next;
+    if (current?.name === name) freehandText = '';
+  }
+
+  function toggleFreehand() {
+    if (readOnly || !current) return;
+    if (freehandActive) {
+      clearFreehand(current.name);
+    } else {
+      const next = new Set(freehandNames);
+      next.add(current.name);
+      freehandNames = next;
+      freehandText =
+        typeof answers[current.name] === 'string'
+          ? (answers[current.name] as string)
+          : '';
+    }
+    error = null;
+  }
+
+  function handleFreehandInput(event: Event) {
+    freehandText = (event.currentTarget as HTMLTextAreaElement).value;
+    error = null;
+    if (current) {
+      const next = new Set(freehandNames);
+      next.add(current.name);
+      freehandNames = next;
+    }
+  }
+
+  function commitFreehandIfActive() {
+    if (!current) return;
+    if (freehandNames.has(current.name)) {
+      answers = { ...answers, [current.name]: freehandText.trim() };
+    }
+  }
+
+  function syncFreehandForCurrent() {
+    const name = current?.name ?? '';
+    freehandText = freehandNames.has(name)
+      ? typeof answers[name] === 'string'
+        ? (answers[name] as string)
+        : ''
+      : '';
+  }
+
+  function handleCancel() {
+    if (readOnly || submitting) return;
+    cancelChat();
   }
 
   function goBack() {
     if (step <= 0) return;
     step -= 1;
+    syncFreehandForCurrent();
     error = null;
   }
 
@@ -101,11 +164,19 @@
     if (!current || current.required) return;
     if (current.multiple) answers = { ...answers, [current.name]: [] };
     else answers = { ...answers, [current.name]: '' };
+    clearFreehand(current.name);
     goForward(true);
   }
 
   function validateCurrentStep(): boolean {
     if (!current) return false;
+    if (freehandNames.has(current.name)) {
+      if (!freehandText.trim()) {
+        error = 'Choose an answer or type your own.';
+        return false;
+      }
+      return true;
+    }
     if (current.required && !isItemAnswered(current, answers)) {
       error = 'Choose an answer to continue.';
       return false;
@@ -123,8 +194,10 @@
   function goForward(skipped = false) {
     if (!current) return;
     if (!skipped && !validateCurrentStep()) return;
+    commitFreehandIfActive();
     if (step < visibleItems.length - 1) {
       step += 1;
+      syncFreehandForCurrent();
       error = null;
       return;
     }
@@ -133,7 +206,10 @@
 
   async function handleSubmit(status: 'answered' | 'skipped' = 'answered') {
     if (readOnly || submitting) return;
-    const validation = validateQuestionnaire(items, answers);
+    commitFreehandIfActive();
+    const validation = validateQuestionnaire(items, answers, {
+      skipValueValidationFor: freehandNames,
+    });
     if (!validation.ok && status === 'answered') {
       error = validation.error;
       if (validation.itemName) {
@@ -235,20 +311,56 @@
         </label>
       {/if}
 
+      <div class="questionnaire__freehand">
+        <button
+          type="button"
+          class="questionnaire__freehand-toggle"
+          class:questionnaire__freehand-toggle--active={freehandActive}
+          aria-pressed={freehandActive}
+          disabled={readOnly || submitting}
+          onclick={toggleFreehand}
+        >
+          {freehandActive ? 'Hide custom answer' : 'Type your own answer'}
+        </button>
+        {#if freehandActive}
+          <label class="questionnaire__input-label">
+            <span>Custom answer</span>
+            <textarea
+              class="questionnaire__freehand-input"
+              rows={2}
+              placeholder={current.input?.placeholder ?? 'Type your answer…'}
+              value={freehandText}
+              disabled={readOnly || submitting}
+              oninput={handleFreehandInput}
+            ></textarea>
+          </label>
+        {/if}
+      </div>
+
       {#if error}
         <p class="questionnaire__error" role="alert">{error}</p>
       {/if}
     </div>
 
     <footer class="questionnaire__actions">
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={step === 0 || submitting}
-        onclick={goBack}
-      >
-        Previous
-      </Button>
+      <div class="questionnaire__actions-start">
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={step === 0 || submitting}
+          onclick={goBack}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={submitting}
+          onclick={handleCancel}
+        >
+          Cancel
+        </Button>
+      </div>
       <div class="questionnaire__actions-end">
         {#if !current.required}
           <Button
@@ -435,12 +547,62 @@
     color: oklch(var(--er, var(--bc)) / 0.9);
   }
 
+  .questionnaire__freehand {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .questionnaire__freehand-toggle {
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: oklch(var(--p) / 0.85);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .questionnaire__freehand-toggle:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+
+  .questionnaire__freehand-toggle:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .questionnaire__freehand-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid oklch(var(--bc) / 0.14);
+    border-radius: 0.375rem;
+    background: oklch(var(--b1));
+    color: oklch(var(--bc));
+    font-size: 0.8125rem;
+    font-family: inherit;
+    resize: vertical;
+  }
+
+  .questionnaire__freehand-input:focus {
+    outline: 2px solid oklch(var(--p) / 0.45);
+    outline-offset: 1px;
+  }
+
   .questionnaire__actions {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
     padding-top: 0.25rem;
+  }
+
+  .questionnaire__actions-start {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
   }
 
   .questionnaire__actions-end {

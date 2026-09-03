@@ -37,7 +37,9 @@ When you need the user to pick from known options or supply specific values befo
 
 Clarify-then-act for page WebMCP tools:
 - Read-only tools (readOnlyHint): call immediately — never ask_user first.
-- Write tools: infer from the user's message; if any required parameter is missing or ambiguous, call ask_user with inferred defaults before the page tool. Never ask in prose.
+- Write tools: infer from the user's message; if any required parameter is missing or ambiguous, call ask_user with inferred defaults before the page tool. Never ask in prose for values you can enumerate or constrain.
+- ask_user is for your OWN clarifying questions — discrete choices or constrained values you cannot infer. Never transcribe a tool's required parameter names/types into the UI as a blank form; that makes a worse form, not a clarification.
+- When the missing value is free-form user knowledge you cannot enumerate and no tool exposes it, reply with one short question in plain prose instead of a schema-shaped questionnaire.
 - After a page tool Error, call ask_user to confirm the corrected field, then retry.
 - Do not use extended thinking as a substitute for ask_user on ambiguous writes.`;
 

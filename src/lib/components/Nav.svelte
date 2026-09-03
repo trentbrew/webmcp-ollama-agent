@@ -11,12 +11,8 @@
   const busy = $derived(isChatBusy());
   const onChatPage = $derived($currentPage === 'chat');
 
-  const mcpBadge = $derived(
-    (mcpState.state?.tools.length ?? 0) + navIndicators.otherTabsToolCount,
-  );
-  const traceBadge = $derived(
-    mcpState.traces.length + navIndicators.otherTabsTraceCount,
-  );
+  const mcpBadge = $derived(mcpState.state?.tools.length ?? 0);
+  const traceBadge = $derived(mcpState.traces.length);
 
   function getPageForMenuItem(label: string): string {
     return label.toLowerCase();
@@ -73,7 +69,7 @@
             class="nav-badge absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 px-1 rounded-full bg-primary text-primary-content text-[0.6rem] font-semibold leading-4 text-center"
             aria-label="{badge} {item.label === 'MCP'
               ? 'tools'
-              : 'traces'} on other tabs"
+              : 'traces'} on this tab"
           >
             {badge > 99 ? '99+' : badge}
           </span>

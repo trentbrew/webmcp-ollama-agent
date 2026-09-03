@@ -1,22 +1,25 @@
 # Privacy Policy — WebMCP Agent Substrate
 
-Last updated: September 1, 2026
+Last updated: September 2, 2026
 
 ## Summary
 
 This extension does not collect, transmit, or sell your data. There are no
-accounts, no analytics, and no telemetry. Everything it reads stays inside your
-browser profile, except for the text you send to the model host you configure —
-which by default is a program running on your own computer.
+accounts, no login, no analytics, no telemetry, and no cloud. Everything it reads
+stays inside your browser profile, except for the text you send to the model host
+you configure — which by default is a program running on your own computer.
+
+The extension is scoped to the **active tab only** (the tab you have open in front
+of you). It does not read or aggregate the contents of your other tabs.
 
 ## What the extension accesses
 
-- **Page content on the active tab.** Content scripts detect WebMCP tools that a
-  site registers, read their names, descriptions, and schemas, and relay tool
-  calls and results. The panel can also sample the page's colors and fonts to
-  match its own theme.
+- **The active tab.** Content scripts detect WebMCP tools that a site registers,
+  read their names, descriptions, and schemas, and relay tool calls and results.
+  The panel can also sample the page's colors and fonts to match its own theme.
 - **Console messages on the active tab**, so the panel can show them in its log.
-- **Tab titles and URLs**, to label conversations and scope them to a tab.
+- **The active tab's title and URL**, to label conversations and scope them to a
+  tab.
 - **What you type**, including any files you attach to a message.
 
 ## Where that data goes
@@ -49,7 +52,7 @@ server by the extension. Removing the extension removes it.
 | Permission | Why |
 | --- | --- |
 | `sidePanel` | The entire UI is a side panel. |
-| `tabs` | Read tab title/URL to scope a conversation to its tab and to switch between them. |
+| `tabs` | Read the **active** tab's title/URL to scope a conversation to its tab and to follow it across tab switches. It does not enumerate or read other tabs. |
 | `scripting` | Inject the WebMCP detection scripts into tabs that were already open when the extension was installed or updated. |
 | `storage` | Persist conversations, settings, and traces locally. |
 | `declarativeNetRequest` | Rewrite request headers on calls to the local Ollama endpoint so the browser permits them. Applied only to the configured model host, never to page traffic. |
