@@ -303,33 +303,47 @@ export function cancelChat() {
   persistSession(session);
 }
 
+/**
+ * Injected on the retry after a turn is cut off at num_predict. A long think is
+ * the usual reason the budget ran out before a tool call, so the retry drops
+ * extended thinking and says plainly what the turn owes.
+ */
+const TRUNCATED_RETRY_NUDGE =
+  'Your previous attempt ran out of output budget while reasoning and never produced an answer. Do not deliberate this time. If a tool matches the request, call it immediately with your best inferred arguments; otherwise answer in two sentences.';
+
 async function runTurn(
   session: TabChatSession | DetachedChatSession,
   assistantId: string,
   requestAbort: AbortController,
   iteration: number,
   consecutiveWriteErrors: number,
+  afterTruncation = false,
 ) {
   const tabId = sessionKey(session);
-  const ollamaMessages = await toOllamaMessages(
+  const history = await toOllamaMessages(
     session.messages.filter((m) => m.id !== assistantId || m.parts.length > 0),
   );
+  const ollamaMessages: OllamaChatMessage[] = afterTruncation
+    ? [...history, { role: 'system', content: TRUNCATED_RETRY_NUDGE }]
+    : history;
   const pageTools = mcpState.tabId != null ? (mcpState.state?.tools ?? []) : [];
   const tools = chatSettings.exposeToolsToAgent ? buildAgentTools(pageTools) : undefined;
 
+  let wasTruncated = false;
   const toolCalls = await new Promise<OllamaToolCall[] | undefined>((resolve) => {
     streamOllamaChat({
       baseUrl: chatSettings.baseUrl,
       model: chatSettings.model,
       messages: ollamaMessages,
-      think: chatSettings.extendedThinking,
+      think: afterTruncation ? false : chatSettings.extendedThinking,
       tools,
       inferenceOptions: chatSettings.inference as unknown as Record<string, number>,
       signal: requestAbort.signal,
       handlers: {
         onDelta: (delta) => appendPart(session, assistantId, 'text', delta),
         onReasoning: (delta) => appendPart(session, assistantId, 'reasoning', delta),
-        onDone: (calls) => {
+        onDone: (calls, truncated) => {
+          wasTruncated = truncated === true;
           stampReasoningEnd(session, assistantId);
           stampAssistantCompleted(session, assistantId);
           resolve(calls?.length ? calls : undefined);
@@ -354,6 +368,27 @@ async function runTurn(
   if (!toolCalls) {
     const recovered = await tryRecoverAskUserFromAssistant(session, assistantId, requestAbort, iteration);
     if (recovered) return;
+
+    // Cut off at num_predict with nothing to show for it. The budget covers
+    // thinking as well as output, so a long think is the usual culprit: clear
+    // the half-finished bubble and take one more pass with thinking off before
+    // handing the user an error they can only fix in Settings.
+    if (wasTruncated && !afterTruncation) {
+      clearAssistantParts(session, assistantId);
+      session.updatedAt = Date.now();
+      persistSession(session);
+      await runTurn(session, assistantId, requestAbort, iteration, consecutiveWriteErrors, true);
+      return;
+    }
+
+    if (wasTruncated) {
+      session.status = 'error';
+      session.error =
+        'Ollama stopped at the num_predict limit before finishing, twice in a row. Raise num_predict in Settings, or reduce the tool surface.';
+      session.updatedAt = Date.now();
+      persistSession(session);
+      return;
+    }
 
     // No tool calls, no text, no reasoning: the turn produced nothing at all.
     // Falling through to 'ready' here leaves an empty bubble and reads as the
@@ -469,6 +504,13 @@ function getAssistantMessage(
   assistantId: string,
 ): UIMessage | undefined {
   return session.messages.find((entry) => entry.id === assistantId);
+}
+
+/** Drop a truncated assistant bubble's partial text/reasoning before retrying into it. */
+function clearAssistantParts(session: TabChatSession | DetachedChatSession, assistantId: string) {
+  const index = session.messages.findIndex((entry) => entry.id === assistantId);
+  if (index < 0) return;
+  session.messages[index] = { ...session.messages[index], parts: [] };
 }
 
 function stripAskUserFromAssistantParts(session: TabChatSession | DetachedChatSession, assistantId: string) {

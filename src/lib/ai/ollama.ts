@@ -65,7 +65,8 @@ export async function configureOllamaBridge(baseUrl: string) {
 export type StreamChatHandlers = {
   onDelta: (text: string) => void;
   onReasoning: (text: string) => void;
-  onDone: (toolCalls?: OllamaToolCall[]) => void;
+  /** `truncated` = Ollama stopped at num_predict, so a missing tool call is a cut-off, not a decision. */
+  onDone: (toolCalls?: OllamaToolCall[], truncated?: boolean) => void;
   onError: (error: string) => void;
 };
 
@@ -140,7 +141,7 @@ function streamViaBridge(
       return;
     }
     if (event.type === 'done') {
-      options.handlers.onDone(event.toolCalls);
+      options.handlers.onDone(event.toolCalls, event.truncated);
       finish();
       return;
     }
@@ -212,6 +213,7 @@ async function streamDirect(
   },
 ) {
   let toolCalls: OllamaToolCall[] | undefined;
+  let truncated = false;
 
   try {
     const response = await fetch(`${resolveFetchBase(options.baseUrl)}/api/chat`, {
@@ -247,13 +249,14 @@ async function streamDirect(
         buffer = buffer.slice(newline + 1);
         if (line) {
           const seen = applyDirectChunk(line, options.handlers);
-          if (seen) toolCalls = seen;
+          if (seen.toolCalls) toolCalls = seen.toolCalls;
+          if (seen.truncated) truncated = true;
         }
         newline = buffer.indexOf('\n');
       }
     }
 
-    options.handlers.onDone(toolCalls);
+    options.handlers.onDone(toolCalls, truncated);
     void requestId;
   } catch (error) {
     if (options.signal?.aborted) return;
@@ -261,23 +264,29 @@ async function streamDirect(
   }
 }
 
-function applyDirectChunk(line: string, handlers: StreamChatHandlers): OllamaToolCall[] | undefined {
+type DirectChunkResult = { toolCalls?: OllamaToolCall[]; truncated?: boolean };
+
+function applyDirectChunk(line: string, handlers: StreamChatHandlers): DirectChunkResult {
   try {
     const chunk = JSON.parse(line) as {
       message?: { content?: string; thinking?: string; tool_calls?: OllamaToolCall[] };
       done?: boolean;
+      done_reason?: string;
       error?: string;
     };
     if (chunk.error) {
       handlers.onError(chunk.error);
-      return undefined;
+      return {};
     }
     if (chunk.message?.thinking) handlers.onReasoning(chunk.message.thinking);
     if (chunk.message?.content) handlers.onDelta(chunk.message.content);
-    return chunk.message?.tool_calls?.length ? chunk.message.tool_calls : undefined;
+    return {
+      ...(chunk.message?.tool_calls?.length ? { toolCalls: chunk.message.tool_calls } : {}),
+      ...(chunk.done && chunk.done_reason === 'length' ? { truncated: true } : {}),
+    };
   } catch {
     // Ignore malformed frames.
-    return undefined;
+    return {};
   }
 }
 

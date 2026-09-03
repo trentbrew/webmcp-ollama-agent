@@ -19,10 +19,17 @@ describe('buildChatSystemPrompt', () => {
     expect(prompt).toContain('list_entities');
   });
 
-  it('includes clarify-then-act policy in the base prompt', () => {
-    expect(CHAT_SYSTEM_PROMPT).toContain('Clarify-then-act for page WebMCP tools');
+  it('includes act-then-clarify policy in the base prompt', () => {
+    expect(CHAT_SYSTEM_PROMPT).toContain('Act-then-clarify for page WebMCP tools');
     expect(CHAT_SYSTEM_PROMPT).toContain('Read-only tools (readOnlyHint): call immediately');
-    expect(CHAT_SYSTEM_PROMPT).toContain('call ask_user with inferred defaults before the page tool');
+    expect(CHAT_SYSTEM_PROMPT).toContain('call them on your first turn with your best inferred arguments');
+  });
+
+  it('reserves ask_user for unsafe actions rather than missing parameters', () => {
+    expect(CHAT_SYSTEM_PROMPT).toContain('Ask the user only when acting would be unsafe');
+    expect(CHAT_SYSTEM_PROMPT).toContain(
+      'Missing or ambiguous optional parameters are never a reason to ask',
+    );
   });
 
   it('appends custom instructions after language and tool sections', () => {

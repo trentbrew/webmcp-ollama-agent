@@ -109,7 +109,7 @@ export type OllamaPortInbound = OllamaChatRequest | OllamaAbortRequest;
 export type OllamaPortOutbound =
   | { type: 'delta'; requestId: string; text: string }
   | { type: 'reasoning'; requestId: string; text: string }
-  | { type: 'done'; requestId: string; toolCalls?: OllamaToolCall[] }
+  | { type: 'done'; requestId: string; toolCalls?: OllamaToolCall[]; truncated?: boolean }
   | { type: 'error'; requestId: string; error: string };
 
 export type ListModelsResponse = {

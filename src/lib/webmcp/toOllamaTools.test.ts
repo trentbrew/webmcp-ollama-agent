@@ -5,7 +5,7 @@ describe('appendClarifyPreamble', () => {
   it('appends clarify preamble to write page tool descriptions', () => {
     const result = appendClarifyPreamble('Place a static 3D model in the world.');
     expect(result).toContain(WRITE_TOOL_CLARIFY_PREAMBLE);
-    expect(result).toContain('plain prose');
+    expect(result).toContain('read-only tool rather than asking');
   });
 
   it('leaves read-only tool descriptions unchanged', () => {

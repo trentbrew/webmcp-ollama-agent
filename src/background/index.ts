@@ -277,16 +277,15 @@ async function streamChat(
 
       if (chunk.done) {
         // `length` means the model was cut off mid-answer, so a missing tool call
-        // is a truncation, not a decision. Report it rather than ending quietly.
-        if (chunk.done_reason === 'length') {
-          emit({
-            type: 'error',
-            requestId,
-            error: 'Ollama stopped at the num_predict limit before finishing. Raise num_predict in Settings, or reduce the tool surface.',
-          });
-          return;
-        }
-        emit({ type: 'done', requestId, toolCalls: toolCallChunks });
+        // is a truncation, not a decision. Report it as a recoverable outcome --
+        // the chat loop retries once without extended thinking before surfacing
+        // it to the user, because a long think is the usual reason for the cut.
+        emit({
+          type: 'done',
+          requestId,
+          toolCalls: toolCallChunks,
+          ...(chunk.done_reason === 'length' ? { truncated: true } : {}),
+        });
         return;
       }
     }
