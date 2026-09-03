@@ -1,5 +1,7 @@
 # WebMCP Local Agent
 
+<img width="1920" height="1080" alt="CleanShot 2026-09-02 at 22 53 25 1" src="https://github.com/user-attachments/assets/d700cba4-5cc7-41ca-ad3e-896e6c45bf0c" />
+
 An AI agent that lives in your Chrome side panel, driven by a language model
 running **locally on your own machine**. It inspects the [WebMCP](https://github.com/webmachinelearning/webmcp)
 tools a web page exposes, runs them directly, audits every call, and lets a local
