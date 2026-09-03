@@ -22,6 +22,9 @@ export type ChatSettings = {
   inference: InferenceOptions;
   exposeToolsToAgent: boolean;
   keepThinkingOpen: boolean;
+  /** Ollama `think`. Off by default: on local models it costs a long stall per
+   *  turn and often ends in prose instead of a tool call. */
+  extendedThinking: boolean;
   language: ChatLanguage;
   customInstructions: string;
 };
@@ -73,18 +76,28 @@ function defaultSettings(): ChatSettings {
     inference: { ...DEFAULT_INFERENCE_OPTIONS },
     exposeToolsToAgent: true,
     keepThinkingOpen: true,
+    extendedThinking: false,
     language: DEFAULT_CHAT_LANGUAGE,
     customInstructions: '',
   };
 }
 
+/** Default that shipped before the tool-calling fixes; too slow to call tools. */
+const RETIRED_DEFAULT_MODEL = 'gemma4';
+
 function parseSettings(parsed: Partial<ChatSettings>): ChatSettings {
   return {
-    model: typeof parsed.model === 'string' ? parsed.model : DEFAULT_OLLAMA_MODEL,
+    // Migrate anyone still pinned to the retired default, which stalled past
+    // 120s on a single tool and never emitted a call.
+    model:
+      typeof parsed.model === 'string' && !parsed.model.startsWith(RETIRED_DEFAULT_MODEL)
+        ? parsed.model
+        : DEFAULT_OLLAMA_MODEL,
     baseUrl: typeof parsed.baseUrl === 'string' ? parsed.baseUrl : DEFAULT_OLLAMA_BASE_URL,
     inference: { ...DEFAULT_INFERENCE_OPTIONS, ...parsed.inference },
     exposeToolsToAgent: typeof parsed.exposeToolsToAgent === 'boolean' ? parsed.exposeToolsToAgent : true,
     keepThinkingOpen: typeof parsed.keepThinkingOpen === 'boolean' ? parsed.keepThinkingOpen : true,
+    extendedThinking: typeof parsed.extendedThinking === 'boolean' ? parsed.extendedThinking : false,
     language: isChatLanguage(parsed.language) ? parsed.language : DEFAULT_CHAT_LANGUAGE,
     customInstructions:
       typeof parsed.customInstructions === 'string' ? parsed.customInstructions : '',
@@ -260,6 +273,7 @@ export function persistChat(
     inference,
     exposeToolsToAgent,
     keepThinkingOpen,
+    extendedThinking: loadChatSettings().extendedThinking,
     language,
     customInstructions: loadChatSettings().customInstructions,
   });

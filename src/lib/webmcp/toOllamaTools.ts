@@ -1,3 +1,4 @@
+import { CLARIFY_PREAMBLE_TOOL_CAP } from '../ai/config';
 import type { OllamaTool } from '../ai/protocol';
 import { BROWSER_TOOLS, isBrowserTool } from '../browser/tools';
 import { isTrellisTool, TRELLIS_TOOLS } from '../trellis/tools';
@@ -170,8 +171,10 @@ function isReadOnlyLocalTool(name: string): boolean {
   );
 }
 
-function toolToOllama(tool: WebMcpToolSummary): OllamaTool {
-  const description = appendClarifyPreamble(tool.description, tool.annotations?.readOnlyHint);
+function toolToOllama(tool: WebMcpToolSummary, withClarifyPreamble = true): OllamaTool {
+  const description = withClarifyPreamble
+    ? appendClarifyPreamble(tool.description, tool.annotations?.readOnlyHint)
+    : tool.description;
   return {
     type: 'function',
     function: {
@@ -183,7 +186,13 @@ function toolToOllama(tool: WebMcpToolSummary): OllamaTool {
 }
 
 export function buildAgentTools(pageTools: WebMcpToolSummary[]): OllamaTool[] {
-  const invokable = buildDiscoveredToolSummaries(pageTools).map(toolToOllama);
+  const discovered = buildDiscoveredToolSummaries(pageTools);
+  // The preamble repeats the same ~340 chars on every write tool. On a wide
+  // surface that is thousands of duplicated tokens all pushing toward "ask"
+  // over "act" -- the opposite of what a large surface needs.
+  const total = discovered.length + BUILTIN_TOOLS.length + BROWSER_TOOLS.length + TRELLIS_TOOLS.length;
+  const withPreamble = total <= CLARIFY_PREAMBLE_TOOL_CAP;
+  const invokable = discovered.map((tool) => toolToOllama(tool, withPreamble));
   return [...invokable, ...BUILTIN_TOOLS, ...BROWSER_TOOLS, ...TRELLIS_TOOLS];
 }
 
@@ -193,5 +202,7 @@ export function buildAgentTools(pageTools: WebMcpToolSummary[]): OllamaTool[] {
  * -- they would otherwise compete for selection and pollute the failure signal.
  */
 export function buildPageOnlyTools(pageTools: WebMcpToolSummary[]): OllamaTool[] {
-  return buildDiscoveredToolSummaries(pageTools).map(toolToOllama);
+  const discovered = buildDiscoveredToolSummaries(pageTools);
+  const withPreamble = discovered.length <= CLARIFY_PREAMBLE_TOOL_CAP;
+  return discovered.map((tool) => toolToOllama(tool, withPreamble));
 }

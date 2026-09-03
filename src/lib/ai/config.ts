@@ -1,10 +1,11 @@
-export const DEFAULT_OLLAMA_MODEL = 'gemma4';
+export const DEFAULT_OLLAMA_MODEL = 'llama3.2:latest';
 export const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
 
 export type InferenceOptions = {
   temperature: number;
   top_p: number;
   top_k: number;
+  num_ctx: number;
   num_predict: number;
   repeat_penalty: number;
 };
@@ -13,9 +14,20 @@ export const DEFAULT_INFERENCE_OPTIONS: InferenceOptions = {
   temperature: 0.7,
   top_p: 0.9,
   top_k: 40,
+  // Ollama defaults to 4096 when unset, which silently truncates a large tool
+  // payload -- tools and the user turn fall out of the window and the model
+  // answers in prose instead of calling. Size for a full page tool surface.
+  num_ctx: 16384,
   num_predict: 4096,
   repeat_penalty: 1.1,
 };
+
+/**
+ * Past this many tools, small local models stop selecting reliably: they emit
+ * prose, or refuse. Above the cap we drop the per-tool clarify preamble to cut
+ * repeated tokens and the bias toward asking over acting.
+ */
+export const CLARIFY_PREAMBLE_TOOL_CAP = 24;
 
 /** Guards against a model that keeps calling tools in a loop without ever finishing. */
 export const MAX_TOOL_ITERATIONS = 6;

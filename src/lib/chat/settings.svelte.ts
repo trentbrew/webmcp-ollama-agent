@@ -11,12 +11,18 @@ export const chatSettings = $state({
   inference: { ...DEFAULT_INFERENCE_OPTIONS, ...persisted.inference },
   exposeToolsToAgent: persisted.exposeToolsToAgent,
   keepThinkingOpen: persisted.keepThinkingOpen,
+  extendedThinking: persisted.extendedThinking,
   language: persisted.language,
   customInstructions: persisted.customInstructions,
 });
 
 export function setKeepThinkingOpen(value: boolean) {
   chatSettings.keepThinkingOpen = value;
+  persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
+}
+
+export function setExtendedThinking(value: boolean) {
+  chatSettings.extendedThinking = value;
   persistChatSettings({ ...chatSettings, inference: { ...chatSettings.inference } });
 }
 
@@ -116,6 +122,7 @@ export function syncChatPersistence() {
     inference: chatSettings.inference,
     exposeToolsToAgent: chatSettings.exposeToolsToAgent,
     keepThinkingOpen: chatSettings.keepThinkingOpen,
+    extendedThinking: chatSettings.extendedThinking,
     language: chatSettings.language,
     customInstructions: chatSettings.customInstructions,
   });

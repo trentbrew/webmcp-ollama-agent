@@ -322,7 +322,7 @@ async function runTurn(
       baseUrl: chatSettings.baseUrl,
       model: chatSettings.model,
       messages: ollamaMessages,
-      think: true,
+      think: chatSettings.extendedThinking,
       tools,
       inferenceOptions: chatSettings.inference as unknown as Record<string, number>,
       signal: requestAbort.signal,
